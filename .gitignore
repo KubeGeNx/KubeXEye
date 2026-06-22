@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+*.tsbuildinfo
+
+# Test coverage (vitest run --coverage)
+coverage
+
+# Lint cache
+.eslintcache
+
+# Env / local overrides
+*.local
+.env
+.env.*.local
+
+# Claude Code local-only settings (settings.json itself is the shared, committed config)
+.claude/settings.local.json
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS
+.DS_Store
+
+# Background dev-server/kubectl-proxy state (see Makefile: make start/stop)
+.run

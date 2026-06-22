@@ -10,7 +10,7 @@ DEV_PORT ?= 5173
 KUBE_PROXY_PORT ?= 8001
 
 .PHONY: help install build run dev start stop restart proxy proxy-stop \
-        preview lint typecheck test test-watch clean distclean status logs
+        preview lint typecheck test test-watch coverage clean distclean status logs
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -86,7 +86,7 @@ preview: build ## Serve the production build locally
 lint: install ## Run ESLint
 	npm run lint
 
-typecheck: install ## Type-check without emitting a build
+typecheck: install ## Type-check without emitting a build (follows tsconfig project references)
 	npx tsc -b --noEmit
 
 test: install ## Run the test suite once (Vitest + React Testing Library)
@@ -95,8 +95,11 @@ test: install ## Run the test suite once (Vitest + React Testing Library)
 test-watch: install ## Run the test suite in watch mode
 	npm run test:watch
 
-clean: ## Remove build output, caches, and run/log artifacts (keeps node_modules)
-	rm -rf dist .vite $(RUN_DIR)
+coverage: install ## Run the test suite and generate a V8 coverage report (coverage/)
+	npm run coverage
+
+clean: ## Remove build output, caches, run/log artifacts, and tsc incremental files (keeps node_modules)
+	rm -rf dist .vite $(RUN_DIR) tsconfig.tsbuildinfo tsconfig.app.tsbuildinfo tsconfig.node.tsbuildinfo
 
 distclean: clean stop ## Stop background processes and remove node_modules too
 	rm -rf node_modules

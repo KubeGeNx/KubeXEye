@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(disown)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5180/)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:5180/src/main.tsx)",
+      "Bash(pkill -f \"vite --port 5180\")",
+      "Bash(npx eslint *)",
+      "Bash(make help *)",
+      "Bash(make status *)",
+      "Bash(make start *)",
+      "Bash(curl -s -o /dev/null -w \"dev server http: %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(make stop *)",
+      "Bash(make clean *)",
+      "Bash(kubectl cluster-info *)",
+      "Bash(kubectl get *)",
+      "Bash(curl -s http://localhost:8001/api/v1/nodes -o /dev/null -w \"kubectl proxy -> /api/v1/nodes: %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:5173/k8s-api/api/v1/nodes -o /dev/null -w \"vite proxy -> /k8s-api/api/v1/nodes: %{http_code}\\\\n\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://localhost:5173/k8s-api/api/v1/services\")",
+      "Bash(curl -s \"http://localhost:5173/k8s-api/api/v1/services\")",
+      "Bash(python3 -c \"import json,sys;d=json.load\\(sys.stdin\\);print\\(len\\(d.get\\('items',[]\\)\\)\\)\")",
+      "Bash(curl -s \"http://localhost:5173/k8s-api/api/v1/persistentvolumeclaims\")",
+      "Bash(curl -s \"http://localhost:5173/k8s-api/apis/storage.k8s.io/v1/storageclasses\")",
+      "Bash(curl -s \"http://localhost:5173/k8s-api/apis/networking.k8s.io/v1/ingresses\")",
+      "Bash(curl -s \"http://localhost:5173/k8s-api/api/v1/namespaces/default/pods\")",
+      "Bash(curl -s \"http://localhost:5173/k8s-api/apis/apps/v1/namespaces/kube-system/deployments\")",
+      "Bash(curl -s \"http://localhost:5173/k8s-api/api/v1/namespaces/kube-system/pods\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /dev/null -w \"dependency-map route: %{http_code}\\\\n\" \"http://localhost:5173/dependency-map?kind=Pod&namespace=kube-system&name=coredns-7d764666f9-jx2vs\")",
+      "Bash(curl -s -o /dev/null -w \"services route: %{http_code}\\\\n\" \"http://localhost:5173/services\")",
+      "Bash(curl -s -o /dev/null -w \"storage-classes route: %{http_code}\\\\n\" \"http://localhost:5173/storage-classes\")",
+      "Bash(npm view *)",
+      "Bash(make restart *)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

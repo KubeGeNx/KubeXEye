@@ -1,181 +1,149 @@
 # KubeXEye
 
-A Kubernetes resource monitoring UI built with React, TypeScript, PatternFly, TanStack Query, TanStack Table, and ECharts.
+A Kubernetes resource monitoring UI — dark-themed, browser-only, no cluster-side components
+required beyond a running API server.
 
-## Stack
+Built with **React 19**, **PatternFly 6**, **TanStack Query v5**, **TanStack Table v8**, and
+**ECharts**.
 
-- **React 19 + TypeScript** — UI and types
-- **PatternFly 6** — layout, navigation, forms, tables shell
-- **TanStack Query** — data fetching/caching/polling against the Kubernetes API
-- **TanStack Table** — sorting, filtering, pagination logic for resource lists
-- **ECharts** (via `echarts-for-react`) — cluster usage gauges, pod status distribution, top-node usage charts
-- **Vite** — dev server / build
-- **React Router 7** — client-side routing
+---
 
-## How it talks to Kubernetes
+## Quick start
 
-The browser calls the Kubernetes API server directly (no custom backend). In dev, Vite proxies
-`/k8s-api/*` to a target you control via `KUBE_PROXY_TARGET` (defaults to `http://localhost:8001`,
-i.e. `kubectl proxy`). This avoids CORS and reuses your kubeconfig's credentials.
+**Step 1 — start a proxy to your cluster**
 
 ```bash
-# Terminal 1
 kubectl proxy --port=8001
+```
 
-# Terminal 2
+Or use the bundled proxy (no `kubectl` binary needed — reads kubeconfig directly):
+
+```bash
+make start        # starts proxy + dev server in the background
+make logs         # tail logs
+make stop         # stop both
+```
+
+**Step 2 — install and run**
+
+```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open **http://localhost:5173**.
 
-To point at a different proxy/API server, set `KUBE_PROXY_TARGET` before starting Vite, or use the
-**Cluster Connection** page in the app to set a custom API base URL / bearer token (for environments
-where you're hitting an API server directly instead of `kubectl proxy`).
+To connect to a different cluster or API server, use the **Cluster Connection** page in the nav
+to set a custom API base URL and optional bearer token.
 
-## Resources covered
+---
 
-- Cluster dashboard (node/pod/namespace/deployment counts, CPU & memory gauges, pod phase
-  distribution, top nodes by CPU) — usage gauges require `metrics-server` to be installed
-- Nodes (status, roles, CPU/memory usage vs. allocatable)
-- Pods (status, readiness, restarts, CPU/memory, node, age) — namespace-scoped via the namespace
-  selector in the masthead
-- Deployments / StatefulSets / DaemonSets
-- Namespaces
-- Events (sorted by most recent, color-coded by type)
-- ConfigMaps
-- Secrets (names, types, and key names only — values are never fetched/decoded/rendered)
-- ServiceAccounts
-- RBAC: Roles, RoleBindings, ClusterRoles, ClusterRoleBindings
-- NetworkPolicies
-- Custom Resources — lists installed CRDs grouped by API group, then browses instances of the
-  selected CRD generically (works for any CRD without code changes) with a raw-JSON detail view
-- Services, Ingress, Persistent Volume Claims, Storage Classes
-- **Dependency Map** — normalizes resources into a consistent shape with a computed health status,
-  extracts relationships (workload → ConfigMap/Secret/ServiceAccount/PVC, PVC → StorageClass,
-  Service/workload → Pods via label selectors, Ingress → Service), and renders them as an
-  interactive ECharts force graph. Supports forward/reverse dependency lists, 1–3 hop
-  expand/collapse, click-to-recenter navigation with a back/breadcrumb trail, and highlights
-  broken references (e.g. a Pod mounting a ConfigMap that doesn't exist) in red. Reach it from the
-  nav, or via the "Map" action on rows in Pods/Workloads/Services/Ingress/ConfigMaps/Secrets/
-  ServiceAccounts/PVCs. Graph zoom uses a fixed step on scroll/trackpad (not the raw wheel delta),
-  since trackpads otherwise make ECharts' default zoom feel wildly oversensitive.
-- **Panic Dashboard** — scans the whole cluster (not namespace-scoped) for NotReady nodes,
-  unhealthy pods/Deployments/StatefulSets/DaemonSets, unbound/lost PVCs, and broken dependency
-  edges from the graph above; ranks them by severity (Critical/High/Medium) and an estimated blast
-  radius (e.g. how many pods sit on a dead node, how many resources reference a missing
-  ConfigMap), with a one-click link from each issue into the Dependency Map. Also surfaces the most
-  recent Warning events as a raw signal (deliberately not correlated into the ranked issues yet).
-- **Helm Releases** — detected by reading Helm's own `helm.sh/release.v1` Secrets and decoding chart/
-  status metadata (name, chart, version, appVersion, revision, status, last deployed) plus a
-  **Values** action showing the values supplied at install/upgrade time (`release.config`) — flagged
-  with a warning since charts sometimes accept credentials directly as values. `release.manifest` is
-  never parsed, since the rendered manifest can embed other resources' literal data (e.g. a
-  chart-created Secret's contents). One row per release, showing its highest revision (mirrors
-  `helm list`).
-- **View definition (YAML/JSON)** — every resource table has a "Definition" action that opens the
-  full object in a single, app-level modal (`src/context/DefinitionViewerContext.tsx`, mounted once
-  in `App.tsx`) with YAML/JSON tabs and a copy-to-clipboard action. `ResourceDefinitionButton` is
-  just a trigger that snapshots `resource` at click time into that shared viewer — deliberately not
-  a per-row Modal, since a poll-driven table refetch was remounting per-row modals and silently
-  closing whatever the user had open. The snapshot also means the displayed content doesn't change
-  while it's open; closing and reopening re-snapshots the latest data. Secrets are redacted before
-  being shown (data values replaced with `<redacted>`, same boundary as the Secrets list). The Pods
-  page additionally flags containers with no `resources.requests`/`limits` defined, both as a
-  warning icon in the table and as a warning banner inside the definition modal
-  (`src/utils/podResourceChecks.ts`).
+## Features
 
-## Project structure
+### Resource views
 
-```
-src/
-  api/client.ts            generic k8s REST GET helper + API group path constants
-  context/                 connection (API base/token) and namespace-selector contexts
-  hooks/useK8sResources.ts one TanStack Query hook per resource type
-  components/
-    table/ResourceTable.tsx  generic TanStack Table + PatternFly table (search/sort/paginate)
-    charts/                  ECharts gauge/pie/bar/graph wrappers
-    layout/                  masthead, nav, namespace selector
-  graph/
-    types.ts                 ResourceRef/NormalizedResource/GraphEdge types
-    normalize.ts              per-kind health-status normalization
-    buildResourceGraph.ts     relationship extraction (the dependency rules live here)
-    neighborhood.ts           forward/reverse lookups + BFS hop expansion for the graph view
-  pages/                    one page per resource area
-  types/k8s.ts              minimal hand-rolled k8s object types
-  utils/resourceUnits.ts    cpu/memory quantity parsing & formatting
-  test/setup.ts             Vitest setup (jest-dom matchers, RTL cleanup)
-```
+All resource pages share a common table with live search, sortable columns, pagination, and a
+**CSV export** button. Press **`/`** anywhere on a page to jump to the table's search box.
 
-Tests are colocated next to the code they cover as `*.test.ts(x)`, not in a separate `__tests__/` tree.
+| Page | What you see |
+|---|---|
+| **Dashboard** | Node / pod / namespace / deployment counts, CPU & memory gauges, pod phase distribution pie chart, top nodes by resource usage |
+| **Nodes** | Status, roles, CPU and memory usage vs. allocatable — cells turn amber at ≥ 65% and red at ≥ 85% |
+| **Pods** | Status, readiness, restart count, CPU/memory, node assignment, age — warns on containers missing resource limits |
+| **Workloads** | Deployments, StatefulSets, DaemonSets, Jobs in one view |
+| **Running Images** | Every unique container image across all pods with pod counts and active namespaces |
+| **Namespaces** | Status and age |
+| **Events** | Sorted by most recent; Warning events highlighted |
+| **ConfigMaps** | Name, namespace, key count, age |
+| **Secrets** | Name, type, key names only — values are never fetched or displayed |
+| **Service Accounts** | Name, namespace, age |
+| **RBAC** | Roles, RoleBindings, ClusterRoles, ClusterRoleBindings in tabbed tables |
+| **Services** | Type, cluster IP, ports, age |
+| **Ingress** | Class, hosts, backends |
+| **Network Policies** | Pod selector, policy types |
+| **Persistent Volume Claims** | Status, storage class, capacity, access modes |
+| **Storage Classes** | Provisioner, reclaim policy, binding mode |
+| **Custom Resources** | Lists all installed CRDs grouped by API group; browse instances of any CRD generically — no code changes needed for new CRDs |
+| **Helm Releases** | Name, chart, version, status, last deployed — decoded from Helm's own Secrets |
+| **Resource Analyser** | Per-namespace CPU and memory breakdown with usage charts |
+| **Cluster Connection** | Configure API base URL and bearer token |
 
-## Adding a new resource type
+### Dependency Map
 
-1. Add a minimal type to `src/types/k8s.ts`.
-2. Add a `useList<T>(...)` hook in `src/hooks/useK8sResources.ts` pointing at its REST path.
-3. Add a page under `src/pages/` using `<ResourceTable />` with a `ColumnDef[]`.
-4. Add a route in `src/App.tsx` and a nav entry in `src/components/layout/AppLayout.tsx`.
+Interactive force-layout graph of resource relationships — workloads → ConfigMaps, Secrets,
+ServiceAccounts, PVCs → StorageClasses, Services → Pods (via label selectors), Ingress → Services.
 
-Custom resources (CRDs) don't need any of this — they're already handled generically by the
-**Custom Resources** page.
+- Broken references (e.g. a Pod mounting a ConfigMap that no longer exists) are highlighted red.
+- Forward and reverse dependency lists alongside the graph.
+- 1 / 2 / 3 hop expand/collapse to control how much of the graph you see at once.
+- Click any node to re-center; breadcrumb trail for navigating back.
+- Reachable from the nav or from the "Map" action on individual rows in Pods, Workloads, Services,
+  Ingress, ConfigMaps, Secrets, ServiceAccounts, and PVCs.
 
-To make a new resource type show up in the **Dependency Map**, add it to `ClusterTopologyInput` in
-`src/graph/buildResourceGraph.ts`, write a `normalizeX` function in `src/graph/normalize.ts`, and add
-whatever relationship rules apply (look at the existing Pod/PVC/Service rules for the pattern: every
-`link(from, to, relation)` call is one edge, and an edge to a nonexistent resource is automatically
-flagged `broken`).
+### Panic Dashboard
 
-## Scripts
+Cluster-wide (not namespace-scoped) scan for issues requiring attention:
+
+- NotReady nodes
+- Unhealthy pods, Deployments, StatefulSets, DaemonSets
+- Unbound or lost PVCs
+- Broken dependency edges from the graph
+
+Issues are ranked **Critical / High / Medium** with an estimated blast radius (how many resources
+are affected), and link directly into the Dependency Map for the affected resource.
+
+### Pod logs
+
+The log panel in the pod detail drawer renders ANSI SGR escape codes — colors from your
+application's own logging library appear in the browser exactly as they would in a terminal.
+Auto-sync polls on a configurable interval; refresh manually at any time.
+
+### Definition viewer (YAML / JSON)
+
+Every resource table has a **Definition** action that opens the full Kubernetes object in a modal
+with YAML and JSON tabs — both syntax-highlighted. Copy-to-clipboard is built in. Secrets are
+redacted (values replaced with `<redacted>`) before being shown.
+
+### Global search — ⌘K
+
+Press **⌘K** (or **Ctrl+K**) anywhere in the app to open a command palette that searches:
+
+- All page names and descriptions (always available, no network needed).
+- Resource names across pods, nodes, services, ingress, and secrets already loaded in the cache.
+
+Arrow keys to navigate, Enter to open. Selecting a resource pre-fills the table filter on the
+target page.
+
+### Quality-of-life
+
+- **Background refresh indicator** — a spinner appears in the masthead while any background
+  API fetch is in flight.
+- **Per-route error isolation** — a render crash on one page shows an inline recovery card.
+  The rest of the app keeps running. "Try again" resets the boundary without a page reload.
+- **Resizable sidebar** — drag the right edge of the nav panel; main content reflows instantly.
+- **Dark theme** — consistent color palette with semantic status colors: healthy green, warning
+  amber, error red, info blue.
+
+---
+
+## Building for production
 
 ```bash
-npm run dev         # start dev server (with k8s-api proxy)
-npm run build       # type-check + production build
-npm run preview     # preview the production build
-npm run lint        # eslint
-npm test            # run the test suite once (Vitest)
-npm run test:watch  # run the test suite in watch mode
+npm run build      # type-check + bundle → dist/
+npm run preview    # serve dist/ locally to verify
 ```
 
-Or via `make test` / `make test-watch` (see the Makefile's `make help`).
+Serve `dist/` as static files and proxy `/k8s-api/*` to your Kubernetes API server.
+See [doc/development.md](doc/development.md) for a full nginx example.
 
-## Testing
+---
 
-Vitest + React Testing Library, configured in `vitest.config.ts` (jsdom environment, setup file at
-`src/test/setup.ts` for `@testing-library/jest-dom` matchers and automatic DOM cleanup between
-tests — RTL's auto-cleanup needs either `globals: true` or an explicit `afterEach(cleanup)`, and we
-use the latter to keep `describe`/`it`/`expect` as explicit imports).
+## Documentation
 
-Coverage is concentrated on the parts with real logic, not page-by-page UI snapshots:
-
-- `src/graph/buildResourceGraph.test.ts`, `neighborhood.test.ts`, `normalize.test.ts` — the
-  dependency-mapping engine: relationship extraction, broken-reference detection, hop expansion,
-  per-kind health status.
-- `src/panic/collectIssues.test.ts` — Panic Dashboard severity/blast-radius logic.
-- `src/utils/*.test.ts` — resource-quantity parsing, secret redaction, missing resource-limit
-  detection, and the Helm release secret decoder (round-tripped through a real `pako.gzip` +
-  double-base64 fixture, the same encoding Helm itself uses).
-- `src/context/DefinitionViewerContext.test.tsx` — regression coverage for a real bug: the
-  definition modal used to live inside each table row and would silently close when the row
-  refetched/remounted. These tests assert the modal survives its trigger unmounting, and that its
-  content is a frozen snapshot rather than reactively tied to live data.
-- `src/components/table/ResourceTable.test.tsx` — search filtering, sorting, loading/empty/error
-  states for the table every resource page is built on.
-
-Two real bugs were caught and fixed while writing this suite (not staged — these were genuine
-issues until the tests found them):
-1. `buildResourceGraph`'s `link()` marked only the *first* edge to a given missing resource as
-   `broken`; later edges to that same missing target were incorrectly `broken: false` because the
-   check only tested "does a node exist," not "is it a real resource or a synthetic missing one."
-2. PatternFly v6's `Modal` no longer renders a visible heading from a `title` string prop (that
-   prop is now just the native HTML tooltip attribute) — it requires a `<ModalHeader title="...">`
-   child. TypeScript didn't catch this because `title` is still accepted as a generic HTML
-   attribute, so every definition-viewer modal was silently missing its visible title until a test
-   asserted on it.
-
-## Required RBAC
-
-The credentials behind `kubectl proxy` (or the bearer token you configure) need read (`get`/`list`)
-access to whichever resources you want to view — nodes, pods, namespaces, events, configmaps,
-secrets, serviceaccounts, deployments/statefulsets/daemonsets, roles/rolebindings/clusterroles/
-clusterrolebindings, networkpolicies, customresourcedefinitions, and any CRD instances, plus
-`metrics.k8s.io` (nodes/pods) if `metrics-server` is installed and you want usage charts.
+| Doc | Contents |
+|---|---|
+| [doc/architecture.md](doc/architecture.md) | Stack, project structure, data flow, theming, key design decisions |
+| [doc/development.md](doc/development.md) | All npm scripts and Make targets, proxy options, production deployment |
+| [doc/adding-resources.md](doc/adding-resources.md) | Step-by-step guide for adding new resource types, dependency map wiring, global search |
+| [doc/testing.md](doc/testing.md) | Test setup, what's covered, real bugs caught during development |
+| [doc/rbac.md](doc/rbac.md) | Minimum RBAC permissions, example ClusterRole manifest |
