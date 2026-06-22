@@ -16,6 +16,10 @@ function emptyTopology(overrides: Partial<ClusterTopologyInput> = {}): ClusterTo
     ingresses: [],
     pvcs: [],
     storageClasses: [],
+    roles: [],
+    roleBindings: [],
+    clusterRoles: [],
+    clusterRoleBindings: [],
     ...overrides,
   };
 }

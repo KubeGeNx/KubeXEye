@@ -10,22 +10,29 @@ import type {
   K8sIngress,
   K8sPersistentVolumeClaim,
   K8sStorageClass,
+  K8sRole,
+  K8sRoleBinding,
   LabelSelector,
 } from '../types/k8s';
 import {
+  normalizeClusterRole,
+  normalizeClusterRoleBinding,
   normalizeConfigMap,
   normalizeDaemonSet,
   normalizeDeployment,
   normalizeIngress,
   normalizePod,
   normalizePvc,
+  normalizeRole,
+  normalizeRoleBinding,
   normalizeSecret,
   normalizeService,
   normalizeServiceAccount,
   normalizeStatefulSet,
   normalizeStorageClass,
 } from './normalize';
-import { refId, type GraphEdge, type NormalizedResource, type RelationKind, type ResourceGraph, type ResourceRef } from './types';
+import { buildAdjacency, refId, type GraphEdge, type NormalizedResource, type RelationKind, type ResourceGraph, type ResourceRef } from './types';
+import { matchesSelector } from '../utils/labelSelector';
 
 export interface ClusterTopologyInput {
   pods: K8sPod[];
@@ -39,12 +46,10 @@ export interface ClusterTopologyInput {
   ingresses: K8sIngress[];
   pvcs: K8sPersistentVolumeClaim[];
   storageClasses: K8sStorageClass[];
-}
-
-function matchesSelector(labels: Record<string, string> | undefined, selector: Record<string, string> | undefined): boolean {
-  if (!selector || Object.keys(selector).length === 0) return false;
-  if (!labels) return false;
-  return Object.entries(selector).every(([k, v]) => labels[k] === v);
+  roles: K8sRole[];
+  roleBindings: K8sRoleBinding[];
+  clusterRoles: K8sRole[];
+  clusterRoleBindings: K8sRoleBinding[];
 }
 
 export function buildResourceGraph(input: ClusterTopologyInput): ResourceGraph {
@@ -64,6 +69,10 @@ export function buildResourceGraph(input: ClusterTopologyInput): ResourceGraph {
   input.deployments.forEach((d) => add(normalizeDeployment(d)));
   input.statefulSets.forEach((s) => add(normalizeStatefulSet(s)));
   input.daemonSets.forEach((d) => add(normalizeDaemonSet(d)));
+  input.roles.forEach((r) => add(normalizeRole(r)));
+  input.roleBindings.forEach((b) => add(normalizeRoleBinding(b)));
+  input.clusterRoles.forEach((r) => add(normalizeClusterRole(r)));
+  input.clusterRoleBindings.forEach((b) => add(normalizeClusterRoleBinding(b)));
 
   function link(from: ResourceRef, to: ResourceRef, relation: RelationKind) {
     const targetId = refId(to);
@@ -165,5 +174,33 @@ export function buildResourceGraph(input: ClusterTopologyInput): ResourceGraph {
     }
   }
 
-  return { nodes, edges };
+  for (const binding of input.roleBindings) {
+    const bindingRef: ResourceRef = { kind: 'RoleBinding', name: binding.metadata.name, namespace: binding.metadata.namespace };
+    const roleKind = binding.roleRef.kind === 'ClusterRole' ? 'ClusterRole' : 'Role';
+    link(
+      bindingRef,
+      { kind: roleKind, name: binding.roleRef.name, namespace: roleKind === 'Role' ? binding.metadata.namespace : undefined },
+      'binds-role',
+    );
+    for (const subject of binding.subjects ?? []) {
+      if (subject.kind !== 'ServiceAccount') continue;
+      link(
+        bindingRef,
+        { kind: 'ServiceAccount', name: subject.name, namespace: subject.namespace ?? binding.metadata.namespace },
+        'grants-to-subject',
+      );
+    }
+  }
+
+  for (const binding of input.clusterRoleBindings) {
+    const bindingRef: ResourceRef = { kind: 'ClusterRoleBinding', name: binding.metadata.name };
+    link(bindingRef, { kind: 'ClusterRole', name: binding.roleRef.name }, 'binds-role');
+    for (const subject of binding.subjects ?? []) {
+      if (subject.kind !== 'ServiceAccount') continue;
+      link(bindingRef, { kind: 'ServiceAccount', name: subject.name, namespace: subject.namespace }, 'grants-to-subject');
+    }
+  }
+
+  const { outgoing, incoming } = buildAdjacency(edges);
+  return { nodes, edges, outgoing, incoming };
 }

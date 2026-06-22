@@ -10,11 +10,11 @@ const ZOOM_STEP_OUT = 1 / 1.08;
 import { refId, type GraphEdge, type HealthStatus, type NormalizedResource, type ResourceKind, type ResourceRef } from '../../graph/types';
 
 const STATUS_COLOR: Record<HealthStatus, string> = {
-  Healthy: '#3e8635',
-  Warning: '#f0ab00',
-  Error: '#c9190b',
-  Pending: '#2b9af3',
-  Unknown: '#6a6e73',
+  Healthy: '#3ABE82',
+  Warning: '#F0A028',
+  Error: '#E25A5A',
+  Pending: '#7EB6F0',
+  Unknown: '#7B7970',
 };
 
 const KINDS: ResourceKind[] = [
@@ -29,7 +29,31 @@ const KINDS: ResourceKind[] = [
   'Ingress',
   'PersistentVolumeClaim',
   'StorageClass',
+  'Role',
+  'RoleBinding',
+  'ClusterRole',
+  'ClusterRoleBinding',
 ];
+
+// One distinct color per resource kind, so the graph reads by type at a glance — health status
+// is conveyed separately via the node's border color/halo (see itemStyle below) rather than fill.
+const KIND_COLOR: Record<ResourceKind, string> = {
+  Pod: '#3e8635',
+  Deployment: '#06c',
+  StatefulSet: '#8481dd',
+  DaemonSet: '#009596',
+  ConfigMap: '#f0ab00',
+  Secret: '#ec7a08',
+  ServiceAccount: '#a18fff',
+  Service: '#5752d1',
+  Ingress: '#0aa3f7',
+  PersistentVolumeClaim: '#c46100',
+  StorageClass: '#6a6e73',
+  Role: '#8bc1f7',
+  RoleBinding: '#519de9',
+  ClusterRole: '#b2b0ea',
+  ClusterRoleBinding: '#f4c145',
+};
 
 interface DependencyGraphChartProps {
   nodes: NormalizedResource[];
@@ -79,24 +103,35 @@ export const DependencyGraphChart: React.FC<DependencyGraphChartProps> = ({ node
         symbolSize: isCenter ? 46 : n.missing ? 32 : 34,
         symbol: n.missing ? 'rect' : 'circle',
         itemStyle: {
-          color: STATUS_COLOR[n.status],
-          borderColor: n.missing ? '#7d1007' : isCenter ? '#06c' : undefined,
-          borderWidth: n.missing ? 3 : isCenter ? 3 : 0,
+          color: KIND_COLOR[n.ref.kind],
+          borderColor: n.missing ? '#7d1007' : STATUS_COLOR[n.status],
+          borderWidth: n.missing ? 3 : 2,
           borderType: n.missing ? ('dashed' as const) : ('solid' as const),
+          shadowColor: isCenter ? '#fff' : undefined,
+          shadowBlur: isCenter ? 14 : 0,
           opacity: 1,
         },
         label: {
           show: true,
-          formatter: () => `${n.ref.kind}\n${n.missing ? `${n.ref.name} ⚠` : n.ref.name}`,
-          fontSize: 10,
-          fontWeight: n.missing ? ('bold' as const) : ('normal' as const),
-          color: n.missing ? '#7d1007' : undefined,
+          formatter: () =>
+            `{kind|${n.ref.kind}}\n{name|${n.missing ? `${n.ref.name} ⚠` : n.ref.name}}`,
+          rich: {
+            kind: {
+              color: '#E8E5DE',
+              fontSize: 10,
+              fontWeight: 'bold' as const,
+            },
+            name: {
+              color: n.missing ? '#E25A5A' : '#A8A59E',
+              fontSize: 10,
+            },
+          },
         },
         tooltip: {
           formatter: () =>
             `<b>${n.ref.kind}</b><br/>${n.ref.namespace ? `ns: ${n.ref.namespace}<br/>` : ''}name: ${n.ref.name}<br/>status: ${n.status}${
               n.statusReason ? `<br/>${n.statusReason}` : ''
-            }${n.missing ? '<br/><b style="color:#c9190b">Not defined in the cluster</b>' : ''}`,
+            }${n.missing ? '<br/><b style="color:#E25A5A">Not defined in the cluster</b>' : ''}`,
         },
       };
     });
@@ -105,7 +140,7 @@ export const DependencyGraphChart: React.FC<DependencyGraphChartProps> = ({ node
       source: refId(e.from),
       target: refId(e.to),
       lineStyle: {
-        color: e.broken ? '#c9190b' : '#8a8d90',
+        color: e.broken ? '#E25A5A' : '#4A4D52',
         type: e.broken ? ('dashed' as const) : ('solid' as const),
         width: e.broken ? 2 : 1.5,
       },
@@ -119,7 +154,7 @@ export const DependencyGraphChart: React.FC<DependencyGraphChartProps> = ({ node
         {
           data: KINDS,
           bottom: 0,
-          textStyle: { fontSize: 10 },
+          textStyle: { fontSize: 10, color: '#C8C5BB' },
           type: 'scroll',
         },
       ],
@@ -132,8 +167,8 @@ export const DependencyGraphChart: React.FC<DependencyGraphChartProps> = ({ node
           roam: 'move',
           scaleLimit: { min: 0.3, max: 4 },
           draggable: true,
-          force: { repulsion: 160, edgeLength: 90, gravity: 0.1 },
-          categories: KINDS.map((k) => ({ name: k })),
+          force: { repulsion: 400, edgeLength: [160, 260], gravity: 0.04 },
+          categories: KINDS.map((k) => ({ name: k, itemStyle: { color: KIND_COLOR[k] } })),
           edgeSymbol: ['none', 'arrow'],
           edgeSymbolSize: 8,
           data: echartNodes,

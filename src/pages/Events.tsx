@@ -47,16 +47,18 @@ export const Events: React.FC = () => {
 
   const columns: ColumnDef<EventRow, any>[] = [
     columnHelper.accessor('type', { header: 'Type', cell: (c) => <StatusLabel status={c.getValue()} /> }),
-    columnHelper.accessor('reason', { header: 'Reason' }),
+    columnHelper.accessor('reason', {
+      header: 'Reason',
+      // Events have no name of their own to click — Reason is the most identifying column, so it
+      // doubles as the trigger for viewing the event's definition.
+      cell: (c) => (
+        <ResourceDefinitionButton resource={c.row.original.raw} title={`Event/${c.row.original.key}`} label={c.getValue()} />
+      ),
+    }),
     columnHelper.accessor('object', { header: 'Object' }),
     columnHelper.accessor('message', { header: 'Message' }),
     columnHelper.accessor('count', { header: 'Count' }),
     columnHelper.accessor('lastSeen', { header: 'Last Seen' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => <ResourceDefinitionButton resource={c.row.original.raw} title={`Event/${c.row.original.key}`} />,
-    }),
   ];
 
   return (

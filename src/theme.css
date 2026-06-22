@@ -1,0 +1,41 @@
+/* Recolors PatternFly's dark theme to match the reference palette: a near-black, slightly
+ * blue-tinted background with a thin red accent strip across the top of the app. Targets the
+ * semantic background tokens directly (rather than the raw --dark--background--color--N
+ * tokens) so only page/card surfaces shift — every other dark-theme-derived token (text
+ * contrast, borders, focus rings) keeps following PatternFly's own computed values. */
+:root.pf-v6-theme-dark {
+  --pf-t--global--background--color--primary--default: #0b0d13;
+  --pf-t--global--background--color--secondary--default: #151822;
+  --pf-t--global--background--color--tertiary--default: #1d212c;
+
+  /* KubeXEye font color palette */
+  --kx-color-text-primary: #F0EEE8;
+  --kx-color-text-secondary: #C8C5BB;
+  --kx-color-text-muted: #7B7970;
+  --kx-color-link: #7EB6F0;
+  --kx-color-status-healthy: #3ABE82;
+  --kx-color-status-warning: #F0A028;
+  --kx-color-status-error: #E25A5A;
+
+  /* Override PatternFly text tokens */
+  --pf-t--global--text--color--default: #F0EEE8;
+  --pf-t--global--text--color--subtle: #C8C5BB;
+  --pf-t--global--text--color--placeholder: #7B7970;
+}
+
+/* Link buttons use the soft blue instead of PatternFly's default brand blue */
+.pf-v6-theme-dark .pf-v6-c-button.pf-m-link {
+  color: var(--kx-color-link);
+}
+.pf-v6-theme-dark .pf-v6-c-button.pf-m-link:hover {
+  color: #a8d0f5;
+}
+
+#root::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: #e1453c;
+  z-index: 10000;
+}

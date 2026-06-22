@@ -267,6 +267,33 @@ export interface K8sIngress extends K8sObject {
   };
 }
 
+// ---- API discovery (/api/v1, /apis, /apis/<group>/<version>) ----
+
+export interface APIResource {
+  /** Plural resource name — possibly a subresource like "pods/status", filtered out by callers. */
+  name: string;
+  namespaced: boolean;
+  kind: string;
+  verbs: string[];
+}
+
+export interface APIResourceList {
+  kind: 'APIResourceList';
+  groupVersion: string;
+  resources: APIResource[];
+}
+
+export interface APIGroup {
+  name: string;
+  versions: { groupVersion: string; version: string }[];
+  preferredVersion: { groupVersion: string; version: string };
+}
+
+export interface APIGroupList {
+  kind: 'APIGroupList';
+  groups: APIGroup[];
+}
+
 // ---- apiextensions.k8s.io/v1 ----
 
 export interface CRDVersion {

@@ -9,14 +9,14 @@ interface DistributionPieChartProps {
 export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({ title, data }) => {
   const option = {
     tooltip: { trigger: 'item' },
-    legend: { bottom: 0, textStyle: { fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { fontSize: 11, color: '#C8C5BB' } },
     series: [
       {
         name: title,
         type: 'pie',
         radius: ['40%', '70%'],
         avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 4, borderWidth: 2, borderColor: '#fff' },
+        itemStyle: { borderRadius: 4, borderWidth: 2, borderColor: 'transparent' },
         label: { show: false },
         data: data.map((d) => ({
           name: d.name,

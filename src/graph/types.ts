@@ -9,7 +9,11 @@ export type ResourceKind =
   | 'Service'
   | 'Ingress'
   | 'PersistentVolumeClaim'
-  | 'StorageClass';
+  | 'StorageClass'
+  | 'Role'
+  | 'RoleBinding'
+  | 'ClusterRole'
+  | 'ClusterRoleBinding';
 
 export interface ResourceRef {
   kind: ResourceKind;
@@ -39,7 +43,9 @@ export type RelationKind =
   | 'pvc-bound-to-storageclass'
   | 'selects-pods'
   | 'routes-to-service'
-  | 'manages-pods';
+  | 'manages-pods'
+  | 'binds-role'
+  | 'grants-to-subject';
 
 export interface GraphEdge {
   from: ResourceRef;
@@ -56,4 +62,21 @@ export function refId(ref: ResourceRef): string {
 export interface ResourceGraph {
   nodes: Map<string, NormalizedResource>;
   edges: GraphEdge[];
+  /** Edges keyed by refId(edge.from), for O(1) forward-dependency lookups. */
+  outgoing: Map<string, GraphEdge[]>;
+  /** Edges keyed by refId(edge.to), for O(1) reverse-dependency lookups. */
+  incoming: Map<string, GraphEdge[]>;
+}
+
+/** Builds the outgoing/incoming adjacency indexes for a completed edge list. */
+export function buildAdjacency(edges: GraphEdge[]): { outgoing: Map<string, GraphEdge[]>; incoming: Map<string, GraphEdge[]> } {
+  const outgoing = new Map<string, GraphEdge[]>();
+  const incoming = new Map<string, GraphEdge[]>();
+  for (const edge of edges) {
+    const fromId = refId(edge.from);
+    const toId = refId(edge.to);
+    (outgoing.get(fromId) ?? outgoing.set(fromId, []).get(fromId)!).push(edge);
+    (incoming.get(toId) ?? incoming.set(toId, []).get(toId)!).push(edge);
+  }
+  return { outgoing, incoming };
 }

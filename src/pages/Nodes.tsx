@@ -54,32 +54,38 @@ export const Nodes: React.FC = () => {
   }, [nodes.data, metrics.data]);
 
   const columns: ColumnDef<NodeRow, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => <ResourceDefinitionButton resource={c.row.original.raw} title={`Node/${c.row.original.name}`} label={c.getValue()} />,
+    }),
     columnHelper.accessor('ready', { header: 'Status', cell: (c) => <StatusLabel status={c.getValue()} /> }),
     columnHelper.accessor('roles', { header: 'Roles' }),
     columnHelper.accessor('cpuUsedCores', {
       header: 'CPU',
-      cell: (c) =>
-        `${formatCores(c.getValue())} / ${formatCores(c.row.original.cpuAllocCores)} (${percent(
-          c.getValue(),
-          c.row.original.cpuAllocCores,
-        ).toFixed(0)}%)`,
+      cell: (c) => {
+        const pct = percent(c.getValue(), c.row.original.cpuAllocCores);
+        const color = pct >= 85 ? '#E25A5A' : pct >= 65 ? '#F0A028' : undefined;
+        return (
+          <span style={color ? { color, fontWeight: 500 } : undefined}>
+            {`${formatCores(c.getValue())} / ${formatCores(c.row.original.cpuAllocCores)} (${pct.toFixed(0)}%)`}
+          </span>
+        );
+      },
     }),
     columnHelper.accessor('memUsedBytes', {
       header: 'Memory',
-      cell: (c) =>
-        `${formatBytes(c.getValue())} / ${formatBytes(c.row.original.memAllocBytes)} (${percent(
-          c.getValue(),
-          c.row.original.memAllocBytes,
-        ).toFixed(0)}%)`,
+      cell: (c) => {
+        const pct = percent(c.getValue(), c.row.original.memAllocBytes);
+        const color = pct >= 85 ? '#E25A5A' : pct >= 65 ? '#F0A028' : undefined;
+        return (
+          <span style={color ? { color, fontWeight: 500 } : undefined}>
+            {`${formatBytes(c.getValue())} / ${formatBytes(c.row.original.memAllocBytes)} (${pct.toFixed(0)}%)`}
+          </span>
+        );
+      },
     }),
     columnHelper.accessor('podCapacity', { header: 'Pod Capacity' }),
     columnHelper.accessor('version', { header: 'Kubelet Version' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => <ResourceDefinitionButton resource={c.row.original.raw} title={`Node/${c.row.original.name}`} />,
-    }),
   ];
 
   return (

@@ -103,13 +103,13 @@ export const PanicPage: React.FC = () => {
 
       <Grid hasGutter style={{ marginBottom: '1rem' }}>
         <GridItem span={3}>
-          <SummaryCard title="Critical" value={counts.Critical} color="#c9190b" />
+          <SummaryCard title="Critical" value={counts.Critical} color="#E25A5A" />
         </GridItem>
         <GridItem span={3}>
-          <SummaryCard title="High" value={counts.High} color="#f0ab00" />
+          <SummaryCard title="High" value={counts.High} color="#F0A028" />
         </GridItem>
         <GridItem span={3}>
-          <SummaryCard title="Medium" value={counts.Medium} color="#795600" />
+          <SummaryCard title="Medium" value={counts.Medium} color="#E8B830" />
         </GridItem>
         <GridItem span={3}>
           <SummaryCard title="Total Issues" value={issues.length} />
@@ -147,8 +147,9 @@ export const PanicPage: React.FC = () => {
             <List isPlain>
               {recentWarnings.map((e) => (
                 <ListItem key={e.metadata.uid ?? `${e.metadata.namespace}/${e.metadata.name}`}>
-                  <strong>{e.reason}</strong> — {e.involvedObject?.kind}/{e.involvedObject?.name} ({e.involvedObject?.namespace}):{' '}
-                  {e.message}
+                  <span style={{ color: '#F0A028', fontWeight: 500 }}>{e.reason}</span>
+                  <span style={{ color: '#7B7970' }}> — {e.involvedObject?.kind}/{e.involvedObject?.name} ({e.involvedObject?.namespace}): </span>
+                  <span style={{ color: '#C8C5BB' }}>{e.message}</span>
                 </ListItem>
               ))}
             </List>

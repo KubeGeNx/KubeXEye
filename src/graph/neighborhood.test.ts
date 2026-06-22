@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getForwardDependencies, getNeighborhood, getReverseDependencies } from './neighborhood';
-import { refId, type GraphEdge, type NormalizedResource, type ResourceGraph, type ResourceRef } from './types';
+import { buildAdjacency, refId, type GraphEdge, type NormalizedResource, type ResourceGraph, type ResourceRef } from './types';
 
 const A: ResourceRef = { kind: 'Deployment', name: 'a', namespace: 'ns' };
 const B: ResourceRef = { kind: 'Pod', name: 'b', namespace: 'ns' };
@@ -22,7 +22,8 @@ function buildChainGraph(): ResourceGraph {
     { from: C, to: D, relation: 'mounts-secret', broken: false },
   ];
 
-  return { nodes, edges };
+  const { outgoing, incoming } = buildAdjacency(edges);
+  return { nodes, edges, outgoing, incoming };
 }
 
 describe('getForwardDependencies / getReverseDependencies', () => {

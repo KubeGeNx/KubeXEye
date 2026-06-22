@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { API, k8sGet, namespacedPath } from '../api/client';
+import { API, k8sGet, k8sGetText, namespacedPath } from '../api/client';
 import { useConnection } from '../context/ConnectionContext';
 import { ALL_NAMESPACES } from '../context/NamespaceContext';
 import type {
@@ -25,7 +25,10 @@ import type {
   K8sIngress,
   K8sPersistentVolumeClaim,
   K8sStorageClass,
+  APIResourceList,
+  APIGroupList,
 } from '../types/k8s';
+import type { ResourceTypeInfo } from '../utils/k8sResourcePaths';
 
 const RESOURCE_REFRESH_MS = 10_000;
 const METRICS_REFRESH_MS = 5_000;
@@ -35,7 +38,7 @@ function resolveNs(namespace: string): string | undefined {
   return namespace === ALL_NAMESPACES ? undefined : namespace;
 }
 
-function useList<T>(key: unknown[], path: string, refetchInterval = RESOURCE_REFRESH_MS): UseQueryResult<T[]> {
+function useList<T>(key: unknown[], path: string, refetchInterval = RESOURCE_REFRESH_MS, enabled = true): UseQueryResult<T[]> {
   const { config } = useConnection();
   return useQuery({
     queryKey: [...key, config],
@@ -44,6 +47,7 @@ function useList<T>(key: unknown[], path: string, refetchInterval = RESOURCE_REF
       return list.items;
     },
     refetchInterval,
+    enabled,
   });
 }
 
@@ -74,6 +78,28 @@ export const usePods = (namespace: string) =>
   useList<K8sPod>(['pods', namespace], namespacedPath(API.core, resolveNs(namespace), 'pods'));
 
 export const useNamespaces = () => useList<K8sNamespace>(['namespaces'], `${API.core}/namespaces`);
+
+interface UsePodLogsOptions {
+  tailLines?: number;
+  /** Polling interval in ms, or false to fetch once and only refresh on manual refetch(). */
+  refetchIntervalMs?: number | false;
+}
+
+export function usePodLogs(namespace: string, name: string, container: string | undefined, options: UsePodLogsOptions): UseQueryResult<string> {
+  const { config } = useConnection();
+  const tailLines = options.tailLines ?? 1000;
+  const params = new URLSearchParams({ tailLines: String(tailLines) });
+  if (container) params.set('container', container);
+  const path = `${API.core}/namespaces/${namespace}/pods/${name}/log?${params.toString()}`;
+
+  return useQuery({
+    queryKey: ['pod-logs', namespace, name, container, tailLines, config],
+    queryFn: () => k8sGetText(config, path),
+    enabled: Boolean(namespace && name),
+    refetchInterval: options.refetchIntervalMs ?? false,
+    retry: 1,
+  });
+}
 
 export const useEvents = (namespace: string) =>
   useList<K8sEvent>(
@@ -110,22 +136,28 @@ export const useStorageClasses = () =>
 
 // ---- Apps ----
 
-export const useDeployments = (namespace: string) =>
+export const useDeployments = (namespace: string, enabled = true) =>
   useList<K8sDeployment>(
     ['deployments', namespace],
     namespacedPath(API.apps, resolveNs(namespace), 'deployments'),
+    RESOURCE_REFRESH_MS,
+    enabled,
   );
 
-export const useStatefulSets = (namespace: string) =>
+export const useStatefulSets = (namespace: string, enabled = true) =>
   useList<K8sStatefulSet>(
     ['statefulsets', namespace],
     namespacedPath(API.apps, resolveNs(namespace), 'statefulsets'),
+    RESOURCE_REFRESH_MS,
+    enabled,
   );
 
-export const useDaemonSets = (namespace: string) =>
+export const useDaemonSets = (namespace: string, enabled = true) =>
   useList<K8sDaemonSet>(
     ['daemonsets', namespace],
     namespacedPath(API.apps, resolveNs(namespace), 'daemonsets'),
+    RESOURCE_REFRESH_MS,
+    enabled,
   );
 
 // ---- RBAC ----
@@ -163,6 +195,40 @@ export const useCustomResourceDefinitions = () =>
     `${API.apiextensions}/customresourcedefinitions`,
   );
 
+/** Discovers every creatable resource type the API server actually offers — the live equivalent of
+ * `kubectl api-resources` — by reading the core (/api/v1) and every group's preferred-version
+ * resource list (/apis/<group>/<version>). Subresources (e.g. "pods/status") and types the caller
+ * can't create are filtered out, since this only feeds "create a new X" pickers. Discovery rarely
+ * changes, so it's fetched once and not polled. */
+export function useApiResources(): UseQueryResult<ResourceTypeInfo[]> {
+  const { config } = useConnection();
+  return useQuery({
+    queryKey: ['api-resources', config],
+    queryFn: async () => {
+      const toTypes = (list: APIResourceList | null, group: string, version: string): ResourceTypeInfo[] =>
+        (list?.resources ?? [])
+          .filter((r) => !r.name.includes('/') && r.verbs.includes('create'))
+          .map((r) => ({ group, version, kind: r.kind, plural: r.name, namespaced: r.namespaced }));
+
+      const [core, groupList] = await Promise.all([
+        k8sGet<APIResourceList>(config, '/api/v1'),
+        k8sGet<APIGroupList>(config, '/apis'),
+      ]);
+
+      const groupResourceLists = await Promise.all(
+        groupList.groups.map((g) =>
+          k8sGet<APIResourceList>(config, `/apis/${g.preferredVersion.groupVersion}`).catch(() => null),
+        ),
+      );
+
+      const fromGroups = groupList.groups.flatMap((g, i) => toTypes(groupResourceLists[i], g.name, g.preferredVersion.version));
+      return [...toTypes(core, '', 'v1'), ...fromGroups];
+    },
+    staleTime: 5 * 60_000,
+    refetchInterval: false,
+  });
+}
+
 export function useCustomResources(
   crd: K8sCustomResourceDefinition | undefined,
   namespace: string,
@@ -181,6 +247,25 @@ export function useCustomResources(
     },
     enabled: Boolean(crd),
     refetchInterval: RESOURCE_REFRESH_MS,
+  });
+}
+
+// ---- Cluster (kubeconfig context) selection ----
+
+interface KubeContexts {
+  current: string;
+  contexts: string[];
+}
+
+/** Lists the kubeconfig contexts the bundled kube-proxy can target — backs the cluster switcher.
+ * Rarely changes within a session, so it's fetched once and not polled. */
+export function useKubeContexts(): UseQueryResult<KubeContexts> {
+  const { config } = useConnection();
+  return useQuery({
+    queryKey: ['kube-contexts', config.apiBase, config.token],
+    queryFn: () => k8sGet<KubeContexts>(config, '/__kubexeye/contexts'),
+    staleTime: 5 * 60_000,
+    refetchInterval: false,
   });
 }
 
@@ -210,6 +295,10 @@ export function useClusterTopology(namespace: string) {
   const ingresses = useIngresses(namespace);
   const pvcs = usePersistentVolumeClaims(namespace);
   const storageClasses = useStorageClasses();
+  const roles = useRoles(namespace);
+  const roleBindings = useRoleBindings(namespace);
+  const clusterRoles = useClusterRoles();
+  const clusterRoleBindings = useClusterRoleBindings();
 
   const isLoading = [
     pods,
@@ -223,6 +312,10 @@ export function useClusterTopology(namespace: string) {
     ingresses,
     pvcs,
     storageClasses,
+    roles,
+    roleBindings,
+    clusterRoles,
+    clusterRoleBindings,
   ].some((q) => q.isLoading);
 
   return {
@@ -238,5 +331,9 @@ export function useClusterTopology(namespace: string) {
     ingresses: ingresses.data ?? [],
     pvcs: pvcs.data ?? [],
     storageClasses: storageClasses.data ?? [],
+    roles: roles.data ?? [],
+    roleBindings: roleBindings.data ?? [],
+    clusterRoles: clusterRoles.data ?? [],
+    clusterRoleBindings: clusterRoleBindings.data ?? [],
   };
 }

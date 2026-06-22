@@ -33,14 +33,14 @@ export const Namespaces: React.FC = () => {
   );
 
   const columns: ColumnDef<NamespaceRow, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => (
+        <ResourceDefinitionButton resource={c.row.original.raw} title={`Namespace/${c.row.original.name}`} label={c.getValue()} />
+      ),
+    }),
     columnHelper.accessor('status', { header: 'Status', cell: (c) => <StatusLabel status={c.getValue()} /> }),
     columnHelper.accessor('age', { header: 'Created', cell: (c) => c.getValue() ?? '—' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => <ResourceDefinitionButton resource={c.row.original.raw} title={`Namespace/${c.row.original.name}`} />,
-    }),
   ];
 
   return (

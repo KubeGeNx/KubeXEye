@@ -42,7 +42,16 @@ export const PersistentVolumeClaims: React.FC = () => {
   );
 
   const columns: ColumnDef<Row, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => (
+        <ResourceDefinitionButton
+          resource={c.row.original.raw}
+          title={`PVC/${c.row.original.namespace}/${c.row.original.name}`}
+          label={c.getValue()}
+        />
+      ),
+    }),
     columnHelper.accessor('namespace', { header: 'Namespace' }),
     columnHelper.accessor('status', { header: 'Status', cell: (c) => <StatusLabel status={c.getValue()} /> }),
     columnHelper.accessor('capacity', { header: 'Capacity' }),
@@ -52,13 +61,6 @@ export const PersistentVolumeClaims: React.FC = () => {
       id: 'map',
       header: 'Dependencies',
       cell: (c) => <ViewMapLink kind="PersistentVolumeClaim" name={c.row.original.name} namespace={c.row.original.namespace} />,
-    }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => (
-        <ResourceDefinitionButton resource={c.row.original.raw} title={`PVC/${c.row.original.namespace}/${c.row.original.name}`} />
-      ),
     }),
   ];
 

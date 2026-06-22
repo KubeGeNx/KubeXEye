@@ -39,20 +39,19 @@ export const NetworkPolicies: React.FC = () => {
   );
 
   const columns: ColumnDef<Row, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
-    columnHelper.accessor('namespace', { header: 'Namespace' }),
-    columnHelper.accessor('podSelector', { header: 'Pod Selector' }),
-    columnHelper.accessor('policyTypes', { header: 'Policy Types' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
+    columnHelper.accessor('name', {
+      header: 'Name',
       cell: (c) => (
         <ResourceDefinitionButton
           resource={c.row.original.raw}
           title={`NetworkPolicy/${c.row.original.namespace}/${c.row.original.name}`}
+          label={c.getValue()}
         />
       ),
     }),
+    columnHelper.accessor('namespace', { header: 'Namespace' }),
+    columnHelper.accessor('podSelector', { header: 'Pod Selector' }),
+    columnHelper.accessor('policyTypes', { header: 'Policy Types' }),
   ];
 
   return (

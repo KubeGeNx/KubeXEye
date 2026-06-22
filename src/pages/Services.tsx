@@ -44,7 +44,16 @@ export const Services: React.FC = () => {
   );
 
   const columns: ColumnDef<Row, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => (
+        <ResourceDefinitionButton
+          resource={c.row.original.raw}
+          title={`Service/${c.row.original.namespace}/${c.row.original.name}`}
+          label={c.getValue()}
+        />
+      ),
+    }),
     columnHelper.accessor('namespace', { header: 'Namespace' }),
     columnHelper.accessor('type', { header: 'Type' }),
     columnHelper.accessor('clusterIP', { header: 'Cluster IP' }),
@@ -54,13 +63,6 @@ export const Services: React.FC = () => {
       id: 'map',
       header: 'Dependencies',
       cell: (c) => <ViewMapLink kind="Service" name={c.row.original.name} namespace={c.row.original.namespace} />,
-    }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => (
-        <ResourceDefinitionButton resource={c.row.original.raw} title={`Service/${c.row.original.namespace}/${c.row.original.name}`} />
-      ),
     }),
   ];
 

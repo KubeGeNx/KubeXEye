@@ -38,16 +38,18 @@ function RolesTable() {
     [query.data],
   );
   const columns: ColumnDef<any, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
-    columnHelper.accessor('namespace', { header: 'Namespace' }),
-    columnHelper.accessor('rules', { header: 'Rules' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
+    columnHelper.accessor('name', {
+      header: 'Name',
       cell: (c) => (
-        <ResourceDefinitionButton resource={c.row.original.raw} title={`Role/${c.row.original.namespace}/${c.row.original.name}`} />
+        <ResourceDefinitionButton
+          resource={c.row.original.raw}
+          title={`Role/${c.row.original.namespace}/${c.row.original.name}`}
+          label={c.getValue()}
+        />
       ),
     }),
+    columnHelper.accessor('namespace', { header: 'Namespace' }),
+    columnHelper.accessor('rules', { header: 'Rules' }),
   ];
   return (
     <ResourceTable
@@ -81,20 +83,19 @@ function RoleBindingsTable() {
     [query.data],
   );
   const columns: ColumnDef<any, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
-    columnHelper.accessor('namespace', { header: 'Namespace' }),
-    columnHelper.accessor('roleRef', { header: 'Role Ref' }),
-    columnHelper.accessor('subjects', { header: 'Subjects' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
+    columnHelper.accessor('name', {
+      header: 'Name',
       cell: (c) => (
         <ResourceDefinitionButton
           resource={c.row.original.raw}
           title={`RoleBinding/${c.row.original.namespace}/${c.row.original.name}`}
+          label={c.getValue()}
         />
       ),
     }),
+    columnHelper.accessor('namespace', { header: 'Namespace' }),
+    columnHelper.accessor('roleRef', { header: 'Role Ref' }),
+    columnHelper.accessor('subjects', { header: 'Subjects' }),
   ];
   return (
     <ResourceTable
@@ -119,13 +120,13 @@ function ClusterRolesTable() {
     [query.data],
   );
   const columns: ColumnDef<any, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
-    columnHelper.accessor('rules', { header: 'Rules' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => <ResourceDefinitionButton resource={c.row.original.raw} title={`ClusterRole/${c.row.original.name}`} />,
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => (
+        <ResourceDefinitionButton resource={c.row.original.raw} title={`ClusterRole/${c.row.original.name}`} label={c.getValue()} />
+      ),
     }),
+    columnHelper.accessor('rules', { header: 'Rules' }),
   ];
   return (
     <ResourceTable
@@ -150,14 +151,18 @@ function ClusterRoleBindingsTable() {
     [query.data],
   );
   const columns: ColumnDef<any, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => (
+        <ResourceDefinitionButton
+          resource={c.row.original.raw}
+          title={`ClusterRoleBinding/${c.row.original.name}`}
+          label={c.getValue()}
+        />
+      ),
+    }),
     columnHelper.accessor('roleRef', { header: 'Role Ref' }),
     columnHelper.accessor('subjects', { header: 'Subjects' }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => <ResourceDefinitionButton resource={c.row.original.raw} title={`ClusterRoleBinding/${c.row.original.name}`} />,
-    }),
   ];
   return (
     <ResourceTable

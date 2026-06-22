@@ -9,12 +9,12 @@ export interface YamlToken {
 }
 
 export const YAML_COLORS = {
-  key: '#dcb67a',
-  string: '#7ec699',
-  scalar: '#79c0ff',
-  comment: '#6a9955',
-  punctuation: '#d4d4d4',
-  undefined: '#ff6b6b',
+  key: '#dcb67a',        // amber — YAML mapping keys
+  string: '#7ec699',     // green — quoted string values
+  scalar: '#79c0ff',     // blue — unquoted scalar values
+  comment: '#89D185',    // light green — was #6a9955, too dark on #1e1e1e (failed WCAG)
+  punctuation: '#C8C5BB', // warm gray — aligns with secondary text token
+  undefined: '#ff6b6b',  // bright red — null/empty/missing values
 } as const;
 
 const BLOCK_SCALAR_RE = /^[|>][+-]?$/;
@@ -143,4 +143,85 @@ export function highlightYamlLines(yamlText: string): YamlToken[][] {
   }
 
   return result;
+}
+
+// ─── JSON syntax highlighter ────────────────────────────────────────────────
+// Tokenizes JSON.stringify output line-by-line for colored display. Shares the
+// same color palette as the YAML highlighter so the two views look consistent.
+
+export interface JsonToken {
+  text: string;
+  color?: string;
+}
+
+const JSON_COLOR = {
+  key: '#dcb67a',        // amber — object keys
+  string: '#7ec699',     // green — string values
+  number: '#79c0ff',     // blue — numeric values
+  keyword: '#7EB6F0',    // soft blue — true / false
+  null: '#ff6b6b',       // red — null
+  punctuation: '#C8C5BB', // warm gray — braces, brackets, colon, comma
+} as const;
+
+function tokenizeJsonLine(line: string): JsonToken[] {
+  const tokens: JsonToken[] = [];
+  let i = 0;
+
+  // Preserve leading whitespace as unstyled
+  const leadMatch = line.match(/^\s+/);
+  if (leadMatch) {
+    tokens.push({ text: leadMatch[0] });
+    i = leadMatch[0].length;
+  }
+
+  while (i < line.length) {
+    const rest = line.slice(i);
+
+    // String token — key (followed by colon) or value
+    if (rest[0] === '"') {
+      const strMatch = rest.match(/^"(?:[^"\\]|\\.)*"/);
+      if (strMatch) {
+        const str = strMatch[0];
+        const after = line.slice(i + str.length).trimStart();
+        const isKey = after.startsWith(':');
+        tokens.push({ text: str, color: isKey ? JSON_COLOR.key : JSON_COLOR.string });
+        i += str.length;
+        continue;
+      }
+    }
+
+    // Number
+    const numMatch = rest.match(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+    if (numMatch) {
+      tokens.push({ text: numMatch[0], color: JSON_COLOR.number });
+      i += numMatch[0].length;
+      continue;
+    }
+
+    // true / false
+    if (rest.startsWith('true') || rest.startsWith('false')) {
+      const kw = rest.startsWith('true') ? 'true' : 'false';
+      tokens.push({ text: kw, color: JSON_COLOR.keyword });
+      i += kw.length;
+      continue;
+    }
+
+    // null
+    if (rest.startsWith('null')) {
+      tokens.push({ text: 'null', color: JSON_COLOR.null });
+      i += 4;
+      continue;
+    }
+
+    // Punctuation and whitespace — one char at a time
+    const ch = rest[0];
+    tokens.push({ text: ch, color: '{}[],:'.includes(ch) ? JSON_COLOR.punctuation : undefined });
+    i++;
+  }
+
+  return tokens;
+}
+
+export function highlightJsonLines(jsonText: string): JsonToken[][] {
+  return jsonText.split('\n').map(tokenizeJsonLine);
 }

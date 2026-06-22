@@ -57,12 +57,20 @@ export const Dashboard: React.FC = () => {
   }, [nodeMetrics.data]);
 
   const podPhases = useMemo(() => {
+    const PHASE_COLOR: Record<string, string> = {
+      Running: '#3ABE82',
+      Succeeded: '#C8C5BB',
+      Pending: '#7EB6F0',
+      Failed: '#E25A5A',
+      Terminating: '#F0A028',
+      Unknown: '#7B7970',
+    };
     const counts: Record<string, number> = {};
     for (const pod of pods.data ?? []) {
       const phase = pod.status?.phase ?? 'Unknown';
       counts[phase] = (counts[phase] ?? 0) + 1;
     }
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+    return Object.entries(counts).map(([name, value]) => ({ name, value, color: PHASE_COLOR[name] }));
   }, [pods.data]);
 
   const topNodesByCpu = useMemo(() => {

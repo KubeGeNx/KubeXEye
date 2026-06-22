@@ -19,6 +19,8 @@ import {
   PuzzlePieceIcon,
   PackageIcon,
   CogIcon,
+  ImagesIcon,
+  FlaskIcon,
 } from '@patternfly/react-icons';
 import type { SVGIconProps } from '@patternfly/react-icons/dist/esm/createIcon';
 import type { ComponentClass } from 'react';
@@ -38,6 +40,7 @@ export const NAV_ICONS = {
   panic: BellIcon,
   dependencyMap: TopologyIcon,
   pods: CubeIcon,
+  images: ImagesIcon,
   workloads: ReplicatorIcon,
   nodes: ServerIcon,
   namespaces: FolderIcon,
@@ -53,5 +56,6 @@ export const NAV_ICONS = {
   rbac: LockIcon,
   customResources: PuzzlePieceIcon,
   helmReleases: PackageIcon,
+  resourceAnalyser: FlaskIcon,
   settings: CogIcon,
 } satisfies Record<string, NavIcon>;

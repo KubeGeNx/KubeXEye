@@ -7,14 +7,12 @@ export interface Neighborhood {
 
 /** Direct (one-hop) edges where `ref` is the source — i.e. what it depends on. */
 export function getForwardDependencies(graph: ResourceGraph, ref: ResourceRef): GraphEdge[] {
-  const id = refId(ref);
-  return graph.edges.filter((e) => refId(e.from) === id);
+  return graph.outgoing.get(refId(ref)) ?? [];
 }
 
 /** Direct (one-hop) edges where `ref` is the target — i.e. what depends on it. */
 export function getReverseDependencies(graph: ResourceGraph, ref: ResourceRef): GraphEdge[] {
-  const id = refId(ref);
-  return graph.edges.filter((e) => refId(e.to) === id);
+  return graph.incoming.get(refId(ref)) ?? [];
 }
 
 /** BFS outward from `center` (both directions) up to `hops` steps, for graph visualization. */
@@ -27,10 +25,10 @@ export function getNeighborhood(graph: ResourceGraph, center: ResourceRef, hops:
   for (let hop = 0; hop < hops; hop++) {
     const next: string[] = [];
     for (const id of frontier) {
-      for (const edge of graph.edges) {
+      const touching = [...(graph.outgoing.get(id) ?? []), ...(graph.incoming.get(id) ?? [])];
+      for (const edge of touching) {
         const fromId = refId(edge.from);
         const toId = refId(edge.to);
-        if (fromId !== id && toId !== id) continue;
         const key = `${fromId}=>${toId}=${edge.relation}`;
         edgeSet.set(key, edge);
         const otherId = fromId === id ? toId : fromId;

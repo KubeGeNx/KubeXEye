@@ -46,7 +46,16 @@ export const Ingress: React.FC = () => {
   );
 
   const columns: ColumnDef<Row, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => (
+        <ResourceDefinitionButton
+          resource={c.row.original.raw}
+          title={`Ingress/${c.row.original.namespace}/${c.row.original.name}`}
+          label={c.getValue()}
+        />
+      ),
+    }),
     columnHelper.accessor('namespace', { header: 'Namespace' }),
     columnHelper.accessor('hosts', { header: 'Hosts' }),
     columnHelper.accessor('backends', { header: 'Backend Services' }),
@@ -54,13 +63,6 @@ export const Ingress: React.FC = () => {
       id: 'map',
       header: 'Dependencies',
       cell: (c) => <ViewMapLink kind="Ingress" name={c.row.original.name} namespace={c.row.original.namespace} />,
-    }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => (
-        <ResourceDefinitionButton resource={c.row.original.raw} title={`Ingress/${c.row.original.namespace}/${c.row.original.name}`} />
-      ),
     }),
   ];
 

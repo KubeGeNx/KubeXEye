@@ -10,6 +10,8 @@ import type {
   K8sIngress,
   K8sPersistentVolumeClaim,
   K8sStorageClass,
+  K8sRole,
+  K8sRoleBinding,
 } from '../types/k8s';
 import type { HealthStatus, NormalizedResource } from './types';
 
@@ -102,4 +104,20 @@ export function normalizePvc(pvc: K8sPersistentVolumeClaim): NormalizedResource 
 
 export function normalizeStorageClass(sc: K8sStorageClass): NormalizedResource {
   return { ...base('StorageClass', sc), status: 'Healthy' };
+}
+
+export function normalizeRole(role: K8sRole): NormalizedResource {
+  return { ...base('Role', role), status: 'Healthy' };
+}
+
+export function normalizeClusterRole(role: K8sRole): NormalizedResource {
+  return { ...base('ClusterRole', role), status: 'Healthy' };
+}
+
+export function normalizeRoleBinding(binding: K8sRoleBinding): NormalizedResource {
+  return { ...base('RoleBinding', binding), status: 'Healthy' };
+}
+
+export function normalizeClusterRoleBinding(binding: K8sRoleBinding): NormalizedResource {
+  return { ...base('ClusterRoleBinding', binding), status: 'Healthy' };
 }

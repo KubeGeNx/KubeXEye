@@ -40,7 +40,16 @@ export const ConfigMaps: React.FC = () => {
   );
 
   const columns: ColumnDef<Row, any>[] = [
-    columnHelper.accessor('name', { header: 'Name' }),
+    columnHelper.accessor('name', {
+      header: 'Name',
+      cell: (c) => (
+        <ResourceDefinitionButton
+          resource={c.row.original.raw}
+          title={`ConfigMap/${c.row.original.namespace}/${c.row.original.name}`}
+          label={c.getValue()}
+        />
+      ),
+    }),
     columnHelper.accessor('namespace', { header: 'Namespace' }),
     columnHelper.accessor('dataItems', { header: 'Data Items' }),
     columnHelper.accessor('keys', { header: 'Keys' }),
@@ -48,13 +57,6 @@ export const ConfigMaps: React.FC = () => {
       id: 'map',
       header: 'Dependencies',
       cell: (c) => <ViewMapLink kind="ConfigMap" name={c.row.original.name} namespace={c.row.original.namespace} />,
-    }),
-    columnHelper.display({
-      id: 'definition',
-      header: 'Definition',
-      cell: (c) => (
-        <ResourceDefinitionButton resource={c.row.original.raw} title={`ConfigMap/${c.row.original.namespace}/${c.row.original.name}`} />
-      ),
     }),
   ];
 

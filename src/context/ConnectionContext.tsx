@@ -5,6 +5,9 @@ export interface ConnectionConfig {
   apiBase: string;
   /** Optional bearer token, needed when connecting straight to an API server (skip when using `kubectl proxy`). */
   token: string;
+  /** Kubeconfig context to target, forwarded as the X-Kube-Context header. Undefined/empty
+   * means "the kube-proxy's current-context" (unchanged single-cluster behavior). */
+  context?: string;
 }
 
 const STORAGE_KEY = 'kubexeye.connection';

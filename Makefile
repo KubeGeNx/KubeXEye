@@ -23,18 +23,18 @@ build: install ## Type-check and produce a production build (dist/)
 	npm run build
 
 run: install ## Start the Vite dev server in the foreground (Ctrl+C to stop)
-	@echo "Make sure 'kubectl proxy --port=$(KUBE_PROXY_PORT)' is running in another terminal (or: make proxy)"
+	@echo "Make sure the kube-proxy replacement is running in another terminal (make proxy) or backgrounded (make start)"
 	npm run dev -- --port $(DEV_PORT)
 
 dev: run ## Alias for 'run'
 
-start: install ## Start kubectl proxy + Vite dev server in the background
+start: install ## Start the kube-proxy replacement + Vite dev server in the background
 	@mkdir -p $(RUN_DIR)
 	@if [ -f $(PROXY_PID) ] && kill -0 $$(cat $(PROXY_PID)) 2>/dev/null; then \
-		echo "kubectl proxy already running (pid $$(cat $(PROXY_PID)))"; \
+		echo "kube-proxy already running (pid $$(cat $(PROXY_PID)))"; \
 	else \
-		echo "Starting kubectl proxy on :$(KUBE_PROXY_PORT) (log: $(PROXY_LOG))"; \
-		nohup kubectl proxy --port=$(KUBE_PROXY_PORT) > $(PROXY_LOG) 2>&1 & echo $$! > $(PROXY_PID); \
+		echo "Starting kube-proxy (server/proxyServer.ts) on :$(KUBE_PROXY_PORT) (log: $(PROXY_LOG))"; \
+		KUBE_PROXY_PORT=$(KUBE_PROXY_PORT) nohup npm run server > $(PROXY_LOG) 2>&1 & echo $$! > $(PROXY_PID); \
 	fi
 	@if [ -f $(DEV_PID) ] && kill -0 $$(cat $(DEV_PID)) 2>/dev/null; then \
 		echo "Dev server already running (pid $$(cat $(DEV_PID)))"; \
@@ -44,7 +44,7 @@ start: install ## Start kubectl proxy + Vite dev server in the background
 	fi
 	@echo "UI: http://localhost:$(DEV_PORT)  |  Logs: make logs  |  Stop: make stop"
 
-stop: ## Stop the background dev server and kubectl proxy started by 'make start'
+stop: ## Stop the background dev server and kube-proxy started by 'make start'
 	@if [ -f $(DEV_PID) ]; then \
 		PID=$$(cat $(DEV_PID)); \
 		if kill -0 $$PID 2>/dev/null; then kill $$PID && echo "Stopped dev server (pid $$PID)"; fi; \
@@ -52,31 +52,31 @@ stop: ## Stop the background dev server and kubectl proxy started by 'make start
 	else echo "Dev server not running (no pid file)"; fi
 	@if [ -f $(PROXY_PID) ]; then \
 		PID=$$(cat $(PROXY_PID)); \
-		if kill -0 $$PID 2>/dev/null; then kill $$PID && echo "Stopped kubectl proxy (pid $$PID)"; fi; \
+		if kill -0 $$PID 2>/dev/null; then kill $$PID && echo "Stopped kube-proxy (pid $$PID)"; fi; \
 		rm -f $(PROXY_PID); \
-	else echo "kubectl proxy not running (no pid file)"; fi
+	else echo "kube-proxy not running (no pid file)"; fi
 
-restart: stop start ## Restart the background dev server and kubectl proxy
+restart: stop start ## Restart the background dev server and kube-proxy
 
-proxy: ## Run 'kubectl proxy' in the foreground (Ctrl+C to stop)
-	kubectl proxy --port=$(KUBE_PROXY_PORT)
+proxy: ## Run the bundled kube-proxy replacement in the foreground (Ctrl+C to stop) — reads kubeconfig directly, no 'kubectl' binary required
+	KUBE_PROXY_PORT=$(KUBE_PROXY_PORT) npm run server
 
-proxy-stop: ## Stop only the background kubectl proxy
+proxy-stop: ## Stop only the background kube-proxy
 	@if [ -f $(PROXY_PID) ]; then \
 		PID=$$(cat $(PROXY_PID)); \
-		if kill -0 $$PID 2>/dev/null; then kill $$PID && echo "Stopped kubectl proxy (pid $$PID)"; fi; \
+		if kill -0 $$PID 2>/dev/null; then kill $$PID && echo "Stopped kube-proxy (pid $$PID)"; fi; \
 		rm -f $(PROXY_PID); \
-	else echo "kubectl proxy not running (no pid file)"; fi
+	else echo "kube-proxy not running (no pid file)"; fi
 
-status: ## Show whether the background dev server / kubectl proxy are running
+status: ## Show whether the background dev server / kube-proxy are running
 	@if [ -f $(DEV_PID) ] && kill -0 $$(cat $(DEV_PID)) 2>/dev/null; then \
 		echo "dev server: running (pid $$(cat $(DEV_PID)), port $(DEV_PORT))"; \
 	else echo "dev server: stopped"; fi
 	@if [ -f $(PROXY_PID) ] && kill -0 $$(cat $(PROXY_PID)) 2>/dev/null; then \
-		echo "kubectl proxy: running (pid $$(cat $(PROXY_PID)), port $(KUBE_PROXY_PORT))"; \
-	else echo "kubectl proxy: stopped"; fi
+		echo "kube-proxy: running (pid $$(cat $(PROXY_PID)), port $(KUBE_PROXY_PORT))"; \
+	else echo "kube-proxy: stopped"; fi
 
-logs: ## Tail the background dev server and kubectl proxy logs
+logs: ## Tail the background dev server and kube-proxy logs
 	@touch $(DEV_LOG) $(PROXY_LOG)
 	tail -f $(DEV_LOG) $(PROXY_LOG)
 
