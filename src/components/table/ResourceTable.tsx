@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   type ColumnDef,
   flexRender,
@@ -58,11 +59,26 @@ export function ResourceTable<T>({
   getRowId,
   exportFilename,
 }: ResourceTableProps<T>) {
+  // GlobalSearch (Cmd+K) deep-links to a resource via ?search=<name>; seed the table filter from it.
+  const [searchParams] = useSearchParams();
+  const searchParam = searchParams.get('search');
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter] = useState(searchParam ?? '');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Sync the filter when ?search= changes while the table stays mounted (e.g. picking another
+  // resource in GlobalSearch without leaving the page). Adjusting state during render — React's
+  // recommended alternative to an effect — so there's no extra commit or flash of stale rows.
+  const [prevSearchParam, setPrevSearchParam] = useState(searchParam);
+  if (searchParam !== prevSearchParam) {
+    setPrevSearchParam(searchParam);
+    if (searchParam != null) {
+      setGlobalFilter(searchParam);
+      setPage(1);
+    }
+  }
 
   const table = useReactTable({
     data: data ?? [],

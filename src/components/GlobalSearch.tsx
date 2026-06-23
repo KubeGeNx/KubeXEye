@@ -103,7 +103,7 @@ const RESOURCE_MAP: Array<{
     getSub: (i) => (i as any)?.metadata?.namespace ?? '',
   },
   {
-    prefix: 'ingress',
+    prefix: 'ingresses',
     path: '/ingress',
     icon: <RouteIcon style={{ color: '#C678DD' }} />,
     getName: (i) => (i as any)?.metadata?.name ?? null,
@@ -181,26 +181,32 @@ export const GlobalSearch: React.FC = () => {
   const listRef = useRef<HTMLDivElement>(null);
   const resourceEntries = useResourceEntries();
 
-  // Open on Cmd+K / Ctrl+K
+  // Open with a clean slate; close without touching transient state (it's reset on next open).
+  const openPalette = useCallback(() => {
+    setQuery('');
+    setActiveIdx(0);
+    setOpen(true);
+  }, []);
+  const close = useCallback(() => setOpen(false), []);
+
+  // Open / close on Cmd+K / Ctrl+K, close on Escape.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((o) => !o);
+        if (open) close();
+        else openPalette();
+      } else if (e.key === 'Escape') {
+        close();
       }
-      if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [open, openPalette, close]);
 
-  // Focus search when modal opens
+  // Focus search when modal opens (external DOM sync — no React state involved).
   useEffect(() => {
-    if (open) {
-      setTimeout(() => searchRef.current?.focus(), 50);
-      setQuery('');
-      setActiveIdx(0);
-    }
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
   }, [open]);
 
   const results = useMemo<SearchEntry[]>(() => {
@@ -223,9 +229,6 @@ export const GlobalSearch: React.FC = () => {
     return [...pages, ...uniqueResources].slice(0, 20);
   }, [query, resourceEntries]);
 
-  // Reset active index when results change
-  useEffect(() => setActiveIdx(0), [results]);
-
   const select = useCallback(
     (entry: SearchEntry) => {
       if (entry.kind === 'page') {
@@ -233,9 +236,9 @@ export const GlobalSearch: React.FC = () => {
       } else {
         navigate(`${entry.path}?search=${encodeURIComponent(entry.search)}`);
       }
-      setOpen(false);
+      close();
     },
-    [navigate],
+    [navigate, close],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -248,7 +251,7 @@ export const GlobalSearch: React.FC = () => {
     } else if (e.key === 'Enter' && results[activeIdx]) {
       select(results[activeIdx]);
     } else if (e.key === 'Escape') {
-      setOpen(false);
+      close();
     }
   };
 
@@ -265,7 +268,7 @@ export const GlobalSearch: React.FC = () => {
   return (
     <Modal
       isOpen={open}
-      onClose={() => setOpen(false)}
+      onClose={close}
       aria-label="Global search"
       variant="small"
       style={{ '--pf-v6-c-modal-box--Width': '560px' } as React.CSSProperties}
@@ -276,8 +279,8 @@ export const GlobalSearch: React.FC = () => {
             ref={searchRef}
             placeholder="Search pages and resources…"
             value={query}
-            onChange={(_e, v) => setQuery(v)}
-            onClear={() => setQuery('')}
+            onChange={(_e, v) => { setQuery(v); setActiveIdx(0); }}
+            onClear={() => { setQuery(''); setActiveIdx(0); }}
             onKeyDown={handleKeyDown}
             aria-label="Global search input"
             style={{ width: '100%' }}

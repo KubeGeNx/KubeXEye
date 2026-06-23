@@ -29,9 +29,11 @@ export const Settings: React.FC = () => {
       <Card style={{ maxWidth: 640 }}>
         <CardBody>
           <Alert variant="info" isInline title="How this connects" style={{ marginBottom: '1rem' }}>
-            By default the app talks to the Vite dev proxy at <code>/k8s-api</code>, which forwards to{' '}
-            <code>kubectl proxy</code> (run <code>kubectl proxy --port=8001</code> before starting the dev
-            server). To connect straight to an API server instead, set the base URL and a bearer token
+            By default the app talks to the bundled kube-proxy at <code>/k8s-api</code>, which reads
+            your kubeconfig directly — no <code>kubectl</code> binary required. Start it with{' '}
+            <code>make proxy</code> (foreground) or <code>make start</code> (background, also starts
+            the dev server). Use the cluster switcher in the nav bar to target a different kubeconfig
+            context. To connect straight to an API server instead, set the base URL and a bearer token
             with read access to the resources you want to view.
           </Alert>
 
@@ -40,17 +42,17 @@ export const Settings: React.FC = () => {
               <TextInput
                 id="api-base"
                 value={apiBase}
-                onChange={(_e, v) => setApiBase(v)}
+                onChange={(_e, v) => { setApiBase(v); setSaved(false); }}
                 placeholder="/k8s-api or https://your-api-server:6443"
               />
             </FormGroup>
             <FormGroup label="Bearer Token (optional)" fieldId="token">
-              <TextInput id="token" type="password" value={token} onChange={(_e, v) => setToken(v)} />
+              <TextInput id="token" type="password" value={token} onChange={(_e, v) => { setToken(v); setSaved(false); }} />
             </FormGroup>
             <Button
               variant="primary"
               onClick={() => {
-                setConfig({ apiBase, token });
+                setConfig({ ...config, apiBase, token });
                 setSaved(true);
               }}
             >

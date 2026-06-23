@@ -40,6 +40,9 @@ interface AnsiToken { text: string; color?: string; bold?: boolean }
 
 function parseAnsi(line: string): AnsiToken[] {
   const tokens: AnsiToken[] = [];
+  // ESC (\x1b) is the literal control char that begins every ANSI SGR sequence — matching it here
+  // is intentional, so the control-char-in-regex lint rule doesn't apply.
+  // eslint-disable-next-line no-control-regex
   const RE = /\x1b\[([\d;]*)m/g;
   let pos = 0;
   let color: string | undefined;

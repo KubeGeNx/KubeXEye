@@ -1,7 +1,19 @@
 # KubeXEye
 
-A Kubernetes resource monitoring UI — dark-themed, browser-only, no cluster-side components
-required beyond a running API server.
+A single-page Kubernetes monitoring UI that talks directly to the cluster's REST API — dark-themed,
+browser-only, read-only, with no in-cluster agents, CRDs, or operators to install. The browser
+issues `GET`s against the discovery and resource endpoints (`/api`, `/apis/<group>/<version>`,
+`/api/v1/namespaces/{ns}/...`) and TanStack Query handles polling, caching, and request
+deduplication; resource discovery means new CRDs surface generically without code changes.
+
+A bundled Node proxy (`server/proxyServer.ts`) terminates browser requests on `/k8s-api`, resolves
+auth from your kubeconfig via `@kubernetes/client-node` — including client-cert and exec/OIDC
+credential plugins, so no `kubectl proxy` or long-lived bearer token is required — and forwards to
+the selected API server. Multi-cluster switching is per-request: the UI tags each call with an
+`X-Kube-Context` header and the proxy re-resolves the target context, so changing clusters needs no
+restart. The footprint is strictly read-only — the sole non-`GET` call is a `dryRun=All`
+server-side apply (`PATCH`) used to validate manifests, which the API server admits and validates
+but never persists.
 
 Built with **React 19**, **PatternFly 6**, **TanStack Query v5**, **TanStack Table v8**, and
 **ECharts**.
@@ -10,35 +22,74 @@ Built with **React 19**, **PatternFly 6**, **TanStack Query v5**, **TanStack Tab
 
 ## Quick start
 
-**Step 1 — start a proxy to your cluster**
+The fastest path uses the **bundled proxy** — it reads your kubeconfig directly, so no `kubectl`
+binary or `kubectl proxy` is required:
 
 ```bash
-kubectl proxy --port=8001
+make start        # builds deps, then starts the bundled proxy + Vite dev server (background)
+make logs         # tail the logs
+make stop         # stop everything
 ```
 
-Or use the bundled proxy (no `kubectl` binary needed — reads kubeconfig directly):
+Then open **http://localhost:5173**.
 
-```bash
-make start        # starts proxy + dev server in the background
-make logs         # tail logs
-make stop         # stop both
-```
-
-**Step 2 — install and run**
+Prefer to run the steps yourself:
 
 ```bash
 npm install
-npm run dev
+npm run server    # bundled kube-proxy on :8001 (reads kubeconfig)
+npm run dev       # Vite dev server on :5173 (proxies /k8s-api → :8001)
 ```
 
-Open **http://localhost:5173**.
+Whichever you choose, use the **cluster switcher** in the nav bar to point at any context in your
+kubeconfig, and the **namespace selector** to scope resource views (or pick *All namespaces*).
 
-To connect to a different cluster or API server, use the **Cluster Connection** page in the nav
-to set a custom API base URL and optional bearer token.
+> Already have `kubectl proxy --port=8001` running? That works too — the dev server forwards
+> `/k8s-api` to `http://localhost:8001` by default. Override the target with the
+> `KUBE_PROXY_TARGET` environment variable.
+
+To connect straight to an API server instead of going through the proxy, open the **Cluster
+Connection** page and set a custom API base URL (e.g. `https://your-api-server:6443`) plus an
+optional bearer token with read access. The page live-checks the connection and reports the node
+count once connected.
+
+---
+
+## Run & build options
+
+Every workflow is available as a `make` target (run `make help` to list them) and as the
+underlying npm script. Ports are overridable via environment variables.
+
+| Command | What it does |
+|---|---|
+| `make start` / `make stop` | Bundled proxy **+** Vite dev server in the background; `make logs` / `make status` / `make restart` manage them |
+| `make run` (alias `make dev`) | Vite dev server in the foreground (expects a proxy already running) |
+| `make proxy` / `make proxy-stop` | Bundled kube-proxy only (foreground / stop background) — reads kubeconfig, no `kubectl` needed |
+| `make serve` | **Production unified server**: builds the app and serves the frontend **and** kube-proxy from a single process on `:8080` — no Vite, no `kubectl` |
+| `make serve-start` / `make serve-stop` | The unified server in the background |
+| `make build` | Type-check and bundle to `dist/` (`npm run build`) |
+| `make preview` | Serve the production build via Vite preview (dev verification only) |
+| `make lint` / `make typecheck` | ESLint / `tsc -b --noEmit` |
+| `make test` / `make test-watch` / `make coverage` | Vitest run / watch / V8 coverage report |
+| `make clean` / `make distclean` | Remove build output & run artifacts / also stop processes and drop `node_modules` |
+
+**Ports** (override on the command line, e.g. `make serve SERVE_PORT=9090`):
+`DEV_PORT` (dev server, default `5173`), `KUBE_PROXY_PORT` (proxy, default `8001`),
+`SERVE_PORT` (unified server, default `8080`).
 
 ---
 
 ## Features
+
+### Multi-cluster & namespace scope
+
+The masthead carries two selectors that apply across every page:
+
+- **Cluster switcher** — lists the contexts in your kubeconfig and forwards the chosen one to the
+  proxy via the `X-Kube-Context` header, so switching clusters needs no restart. Switching resets
+  the namespace filter to *All namespaces* so views don't silently show empty results for a
+  namespace that doesn't exist on the new cluster.
+- **Namespace selector** — scope namespaced resource pages to one namespace or *All namespaces*.
 
 ### Resource views
 
@@ -128,12 +179,24 @@ target page.
 
 ## Building for production
 
+The simplest deployment is the **unified server** — one Node process that builds the app, serves
+the static frontend, and proxies the Kubernetes API (with multi-cluster switching) on a single
+port. No Vite and no `kubectl` are involved:
+
+```bash
+make serve                  # build + serve on http://localhost:8080 (foreground)
+make serve-start            # same, in the background (make serve-stop to stop)
+make serve SERVE_PORT=9090  # custom port
+```
+
+Prefer to host the static bundle yourself? Build it and serve `dist/` from any static web server,
+proxying `/k8s-api/*` to your Kubernetes API server:
+
 ```bash
 npm run build      # type-check + bundle → dist/
 npm run preview    # serve dist/ locally to verify
 ```
 
-Serve `dist/` as static files and proxy `/k8s-api/*` to your Kubernetes API server.
 See [doc/development.md](doc/development.md) for a full nginx example.
 
 ---

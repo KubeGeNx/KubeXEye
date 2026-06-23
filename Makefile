@@ -2,14 +2,18 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 RUN_DIR := .run
-DEV_PID := $(RUN_DIR)/dev.pid
-DEV_LOG := $(RUN_DIR)/dev.log
-PROXY_PID := $(RUN_DIR)/kube-proxy.pid
-PROXY_LOG := $(RUN_DIR)/kube-proxy.log
-DEV_PORT ?= 5173
+DEV_PID    := $(RUN_DIR)/dev.pid
+DEV_LOG    := $(RUN_DIR)/dev.log
+PROXY_PID  := $(RUN_DIR)/kube-proxy.pid
+PROXY_LOG  := $(RUN_DIR)/kube-proxy.log
+SERVE_PID  := $(RUN_DIR)/serve.pid
+SERVE_LOG  := $(RUN_DIR)/serve.log
+DEV_PORT        ?= 5173
 KUBE_PROXY_PORT ?= 8001
+SERVE_PORT      ?= 8080
 
 .PHONY: help install build run dev start stop restart proxy proxy-stop \
+        serve serve-start serve-stop \
         preview lint typecheck test test-watch coverage clean distclean status logs
 
 help: ## Show available targets
@@ -44,7 +48,7 @@ start: install ## Start the kube-proxy replacement + Vite dev server in the back
 	fi
 	@echo "UI: http://localhost:$(DEV_PORT)  |  Logs: make logs  |  Stop: make stop"
 
-stop: ## Stop the background dev server and kube-proxy started by 'make start'
+stop: serve-stop ## Stop all background processes (dev server, kube-proxy, and unified server)
 	@if [ -f $(DEV_PID) ]; then \
 		PID=$$(cat $(DEV_PID)); \
 		if kill -0 $$PID 2>/dev/null; then kill $$PID && echo "Stopped dev server (pid $$PID)"; fi; \
@@ -68,19 +72,51 @@ proxy-stop: ## Stop only the background kube-proxy
 		rm -f $(PROXY_PID); \
 	else echo "kube-proxy not running (no pid file)"; fi
 
-status: ## Show whether the background dev server / kube-proxy are running
+status: ## Show whether the background dev server / kube-proxy / unified server are running
 	@if [ -f $(DEV_PID) ] && kill -0 $$(cat $(DEV_PID)) 2>/dev/null; then \
-		echo "dev server: running (pid $$(cat $(DEV_PID)), port $(DEV_PORT))"; \
-	else echo "dev server: stopped"; fi
+		echo "dev server    : running (pid $$(cat $(DEV_PID)), port $(DEV_PORT))"; \
+	else echo "dev server    : stopped"; fi
 	@if [ -f $(PROXY_PID) ] && kill -0 $$(cat $(PROXY_PID)) 2>/dev/null; then \
-		echo "kube-proxy: running (pid $$(cat $(PROXY_PID)), port $(KUBE_PROXY_PORT))"; \
-	else echo "kube-proxy: stopped"; fi
+		echo "kube-proxy    : running (pid $$(cat $(PROXY_PID)), port $(KUBE_PROXY_PORT))"; \
+	else echo "kube-proxy    : stopped"; fi
+	@if [ -f $(SERVE_PID) ] && kill -0 $$(cat $(SERVE_PID)) 2>/dev/null; then \
+		echo "unified server: running (pid $$(cat $(SERVE_PID)), port $(SERVE_PORT))"; \
+	else echo "unified server: stopped"; fi
 
-logs: ## Tail the background dev server and kube-proxy logs
-	@touch $(DEV_LOG) $(PROXY_LOG)
-	tail -f $(DEV_LOG) $(PROXY_LOG)
+logs: ## Tail the background dev server, kube-proxy, and unified server logs
+	@touch $(DEV_LOG) $(PROXY_LOG) $(SERVE_LOG)
+	tail -f $(DEV_LOG) $(PROXY_LOG) $(SERVE_LOG)
 
-preview: build ## Serve the production build locally
+## ── Production / unified server ──────────────────────────────────────────────
+## Runs the frontend + kube-proxy as a single process (no Vite, no kubectl).
+## Multi-cluster switching works via the X-Kube-Context header, driven by the
+## cluster dropdown in the UI.  Access the app at http://localhost:$(SERVE_PORT).
+##
+##   Quick start:  make serve
+##   Background:   make serve-start  /  make serve-stop
+##   Custom port:  make serve SERVE_PORT=9090
+
+serve: build ## Build and serve the app + kube-proxy as a single process (foreground, port $(SERVE_PORT))
+	KUBE_PROXY_PORT=$(SERVE_PORT) npm run server
+
+serve-start: build ## Build and start the unified server in the background (port $(SERVE_PORT))
+	@mkdir -p $(RUN_DIR)
+	@if [ -f $(SERVE_PID) ] && kill -0 $$(cat $(SERVE_PID)) 2>/dev/null; then \
+		echo "Unified server already running (pid $$(cat $(SERVE_PID)), port $(SERVE_PORT))"; \
+	else \
+		echo "Building and starting unified server on :$(SERVE_PORT) (log: $(SERVE_LOG))"; \
+		KUBE_PROXY_PORT=$(SERVE_PORT) nohup npm run server > $(SERVE_LOG) 2>&1 & echo $$! > $(SERVE_PID); \
+		echo "UI: http://localhost:$(SERVE_PORT)  |  Logs: make logs  |  Stop: make serve-stop"; \
+	fi
+
+serve-stop: ## Stop the background unified server started by 'make serve-start'
+	@if [ -f $(SERVE_PID) ]; then \
+		PID=$$(cat $(SERVE_PID)); \
+		if kill -0 $$PID 2>/dev/null; then kill $$PID && echo "Stopped unified server (pid $$PID)"; fi; \
+		rm -f $(SERVE_PID); \
+	else echo "Unified server not running (no pid file)"; fi
+
+preview: build ## Serve the production build locally via Vite preview (dev use only — prefer 'make serve' for production)
 	npm run preview
 
 lint: install ## Run ESLint

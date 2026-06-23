@@ -10,18 +10,22 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const target = env.KUBE_PROXY_TARGET || 'http://localhost:8001';
 
+  const k8sProxy = {
+    target,
+    changeOrigin: true,
+    secure: false,
+    rewrite: (path: string) => path.replace(/^\/k8s-api/, ''),
+  };
+
   return {
     plugins: [react()],
     server: {
       port: 5173,
-      proxy: {
-        '/k8s-api': {
-          target,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path.replace(/^\/k8s-api/, ''),
-        },
-      },
+      proxy: { '/k8s-api': k8sProxy },
+    },
+    preview: {
+      port: 4173,
+      proxy: { '/k8s-api': k8sProxy },
     },
   };
 });
