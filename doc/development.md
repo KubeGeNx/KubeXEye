@@ -2,9 +2,15 @@
 
 ## Prerequisites
 
-- **Node.js** ≥ 20 (the project uses `"type": "module"` and modern ESM)
+- **Node.js** ≥ 20.19 (Vite 8 requires it — see the `engines` field in `package.json`)
 - **npm** ≥ 10
 - A running Kubernetes cluster accessible from your machine
+
+Every `make` target that installs, builds, or runs anything (`install`, `build`, `run`, `start`,
+`proxy`, `serve`, `lint`, `test`, ...) checks the Node.js/npm versions first (`make check-node`,
+implemented in `scripts/check-node-version.cjs`) and fails fast with a clear message — rather than
+an unhelpful crash — if they're too old. Plain `npm install`/`npm run dev` don't run this check;
+use the `make` targets (or run `make check-node` yourself) if you want it enforced.
 
 ## Quick start
 
@@ -73,10 +79,12 @@ This is stored in `localStorage` and persists across reloads.
 
 ## Make targets
 
-Run `make help` for a formatted summary. All targets that need npm packages run `install` first.
+Run `make help` for a formatted summary. All targets that need npm packages run `install` first,
+which in turn runs `check-node` first.
 
 | Target | What it does |
 |---|---|
+| `make check-node` | Verify Node.js/npm meet the minimum required versions; fails fast with a fix hint if not |
 | `make start` | Start bundled proxy + Vite in the background |
 | `make stop` | Stop both background processes |
 | `make restart` | `stop` then `start` |

@@ -86,7 +86,9 @@ src/
       TopUsageBarChart.tsx       Top-N nodes by CPU/memory bar chart
       UsageGaugeChart.tsx        Cluster CPU/memory gauge (color-coded at 65%/85%)
     layout/
-      AppLayout.tsx        Page shell: resizable sidebar, masthead with refresh indicator + ⌘K
+      AppLayout.tsx        Page shell: sidebar, masthead with refresh indicator + ⌘K
+      useResizableSidebar.ts  Drag-to-resize width state for the sidebar, persisted to localStorage
+                           — extracted from AppLayout.tsx so it's testable independent of page chrome
       NamespaceSelector.tsx
       ClusterSelector.tsx
       Logo.tsx
@@ -118,6 +120,8 @@ src/
     DependencyMap.tsx
     PanicPage.tsx
     ResourceAnalyser.tsx
+    SecurityAnalyzer.tsx   Static security assessment (score, findings, PSS/CIS/OWASP mapping) —
+                           manifest pasted or picked live via the pod selector
     Settings.tsx
   types/
     k8s.ts                 Minimal hand-rolled k8s object types (no generated client)
@@ -126,12 +130,22 @@ src/
     yamlHighlight.ts       YAML and JSON line-by-line syntax tokenizers
     podResourceChecks.ts   Detects containers missing resources.requests / limits
     helmDecoder.ts         Decodes Helm release secrets (base64 → gzip → JSON)
+    redact.ts              Replaces Secret data values with `<redacted>` for display — values are
+                           never decoded or shown
+    securityAnalysis.ts    Kubernetes Security Analyzer rule engine — pure function of a parsed
+                           manifest to a scored SecurityReport (findings, PSS/CIS/OWASP mapping)
+    workloadPodSpec.ts     Single source of truth for "where's this manifest's pod spec" (Pod,
+                           CronJob's nested template, spec.template.spec kinds) — shared by
+                           manifestRecommendations.ts and securityAnalysis.ts
   theme.css                Dark theme: --kx-color-* palette + PatternFly token overrides
   App.tsx                  Route tree; React.lazy imports; QueryClient; ErrorBoundary wrapping
   main.tsx                 React DOM entry point
 server/
   proxyServer.ts           Optional bundled proxy: reads kubeconfig via @kubernetes/client-node,
                            exposes the K8s API on :8001, no kubectl binary needed
+scripts/
+  check-node-version.cjs  Node.js/npm minimum-version check, run by `make check-node` (a
+                           prerequisite of every install/build/run Make target)
 ```
 
 ## Theming

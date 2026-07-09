@@ -53,9 +53,9 @@ missing ConfigMap). Verifies that issues are sorted by severity descending and d
 `src/utils/resourceUnits.test.ts` — CPU quantity parsing (`"500m"` → `0.5`, `"2"` → `2.0`) and
 memory parsing (`"512Mi"` → `536870912`, `"1Gi"` → `1073741824`); formatting back to human-readable.
 
-`src/utils/secretRedaction.test.ts` — verifies that `data` values in K8s Secret objects are
-replaced with `<redacted>` before being shown in the definition viewer, and that `metadata` and
-`type` fields pass through unchanged.
+`src/utils/redact.test.ts` — verifies that `data` values in K8s Secret objects are replaced with
+`<redacted>` before being shown in the definition viewer, and that `metadata` and `type` fields
+pass through unchanged.
 
 `src/utils/podResourceChecks.test.ts` — detects containers with missing `resources.requests` and/or
 `resources.limits`; verifies that the warning is per-container, not per-pod, and that pods with all
@@ -64,6 +64,18 @@ containers fully specified produce no warnings.
 `src/utils/helmDecoder.test.ts` — decodes a Helm release secret end-to-end: base64 → gunzip →
 base64 → JSON. The fixture is produced by a real `pako.gzip` call (the same encoding Helm itself
 uses), so this test would catch any change to the decoding pipeline.
+
+`src/utils/workloadPodSpec.test.ts` — the shared "find this manifest's pod spec" resolver used by
+both the Resource Analyser and the Security Analyzer, covering `Pod`, every `spec.template.spec`
+kind, `CronJob`'s nested job template, and kinds with no pod template at all.
+
+`src/utils/securityAnalysis.test.ts` — the Security Analyzer rule engine: an intentionally
+insecure Pod (privileged, `hostNetwork`, `SYS_ADMIN`, plaintext secret in an env var) scores below
+60 with the expected Critical/High findings and fails both Baseline and Restricted Pod Security
+Standards; a hardened Pod scores ≥ 80 with no Critical/High findings and passes Restricted; a
+ClusterRole with wildcard `rules` is flagged; non-workload kinds without a pod template (e.g.
+ConfigMap) report `applicable: false` instead of a false score; malformed input is handled without
+throwing.
 
 ### Context
 
@@ -75,6 +87,14 @@ remounted. Tests assert that:
 2. The modal content is a frozen snapshot of the resource at click time — it does not update if the
    underlying data changes while the modal is open.
 3. Closing and reopening re-snapshots to the latest data.
+
+### Layout
+
+`src/components/layout/useResizableSidebar.test.ts` — the sidebar drag-to-resize hook (extracted
+from `AppLayout.tsx` so the resize/persist logic is testable independent of the page chrome that
+renders it): restores a valid stored width, falls back to the default for an out-of-range stored
+value, clamps mid-drag width to `[min, max]`, and only persists to `localStorage` on release, not
+on every pointer-move.
 
 ### ResourceTable
 

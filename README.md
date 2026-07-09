@@ -1,5 +1,8 @@
 # KubeXEye
 
+[![CI](https://github.com/KubeGeNx/KubeXEye/actions/workflows/ci.yml/badge.svg)](https://github.com/KubeGeNx/KubeXEye/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 A single-page Kubernetes monitoring UI that talks directly to the cluster's REST API — dark-themed,
 browser-only, read-only, with no in-cluster agents, CRDs, or operators to install. The browser
 issues `GET`s against the discovery and resource endpoints (`/api`, `/apis/<group>/<version>`,
@@ -116,7 +119,8 @@ All resource pages share a common table with live search, sortable columns, pagi
 | **Storage Classes** | Provisioner, reclaim policy, binding mode |
 | **Custom Resources** | Lists all installed CRDs grouped by API group; browse instances of any CRD generically — no code changes needed for new CRDs |
 | **Helm Releases** | Name, chart, version, status, last deployed — decoded from Helm's own Secrets |
-| **Resource Analyser** | Per-namespace CPU and memory breakdown with usage charts |
+| **Resource Analyser** | Author a manifest (or pick a discovered kind), validate it against the live API server with a dry run, and get best-practice feedback before applying it for real |
+| **Security Analyzer** | Score a Pod/Deployment/StatefulSet/DaemonSet/Job/CronJob (pasted, or picked live from the cluster) against Pod Security Standards, the CIS Benchmark, and the OWASP Kubernetes Top 10 — see [below](#security-analyzer) |
 | **Cluster Connection** | Configure API base URL and bearer token |
 
 ### Dependency Map
@@ -142,6 +146,27 @@ Cluster-wide (not namespace-scoped) scan for issues requiring attention:
 
 Issues are ranked **Critical / High / Medium** with an estimated blast radius (how many resources
 are affected), and link directly into the Dependency Map for the affected resource.
+
+### Security Analyzer
+
+A deterministic, rule-based static security assessment for a single workload manifest — entirely
+client-side, nothing is sent anywhere. Either select a running pod from the cluster (via the
+namespace-scoped pod picker) or paste/author a Pod, Deployment, StatefulSet, DaemonSet, Job,
+CronJob, Role/ClusterRole, or ServiceAccount manifest.
+
+- **0–100 score** with a letter grade (A+ to F) and a Low/Moderate/High/Critical risk level,
+  computed by deducting points per finding (Critical −10, High −7, Medium −4, Low −2,
+  Informational 0).
+- **43 checks** across Identity & Privileges, Runtime Security, Filesystem, Networking, Image
+  Security, Secrets & Identity, Resource Management, and Operational Best Practices — see
+  `src/utils/securityAnalysis.ts` for the full rule catalogue.
+- **Pod Security Standards compliance** (Restricted / Baseline / Privileged), with the specific
+  violations listed per standard.
+- **CIS Kubernetes Benchmark** and **OWASP Kubernetes Top 10** mappings for every finding.
+- Severity-grouped **remediation order** with an estimated post-fix score, and an overall
+  production-readiness / admission verdict.
+
+Missing configuration is always treated as "not configured," never assumed safe.
 
 ### Pod logs
 
@@ -210,3 +235,5 @@ See [doc/development.md](doc/development.md) for a full nginx example.
 | [doc/adding-resources.md](doc/adding-resources.md) | Step-by-step guide for adding new resource types, dependency map wiring, global search |
 | [doc/testing.md](doc/testing.md) | Test setup, what's covered, real bugs caught during development |
 | [doc/rbac.md](doc/rbac.md) | Minimum RBAC permissions, example ClusterRole manifest |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, coding conventions, PR checklist |
+| [SECURITY.md](SECURITY.md) | Reporting a vulnerability |

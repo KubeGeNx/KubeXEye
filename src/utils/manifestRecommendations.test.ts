@@ -18,6 +18,18 @@ describe('analyzeManifest', () => {
     expect(messages.some((m) => m.includes('replicas is 1'))).toBe(true);
   });
 
+  it('flags a ReplicaSet the same way as a Deployment (shared workload-kind resolution with securityAnalysis.ts)', () => {
+    const recs = analyzeManifest({
+      kind: 'ReplicaSet',
+      metadata: { name: 'rs' },
+      spec: { template: { spec: { containers: [{ name: 'app', image: 'nginx' }] } } },
+    });
+
+    const messages = recs.map((r) => r.message);
+    expect(messages.some((m) => m.includes('resource requests'))).toBe(true);
+    expect(messages.some((m) => m.includes('latest'))).toBe(true);
+  });
+
   it('flags a privileged container as danger severity', () => {
     const recs = analyzeManifest({
       kind: 'Pod',

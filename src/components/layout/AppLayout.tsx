@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useIsFetching } from '@tanstack/react-query';
 import {
@@ -29,6 +29,7 @@ import { NamespaceSelector } from './NamespaceSelector';
 import { ClusterSelector } from './ClusterSelector';
 import { Logo } from './Logo';
 import { NAV_ICONS, K8S_BLUE, type NavIcon } from './navIcons';
+import { useResizableSidebar } from './useResizableSidebar';
 import { GlobalSearch } from '../GlobalSearch';
 
 const navSections: { title: string; items: { to: string; label: string; icon: NavIcon }[] }[] = [
@@ -98,6 +99,7 @@ const navSections: { title: string; items: { to: string; label: string; icon: Na
       { to: '/helm-releases', label: 'Helm Releases', icon: NAV_ICONS.helmReleases },
       { to: '/dependency-map', label: 'Dependency Map', icon: NAV_ICONS.dependencyMap },
       { to: '/resource-analyser', label: 'Resource Analyser', icon: NAV_ICONS.resourceAnalyser },
+      { to: '/security-analyzer', label: 'Security Analyzer', icon: NAV_ICONS.securityAnalyzer },
     ],
   },
 ];
@@ -110,48 +112,13 @@ const SIDEBAR_DEFAULT_WIDTH = 290;
 export const AppLayout: React.FC = () => {
   const isFetching = useIsFetching();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
-    return stored >= SIDEBAR_MIN_WIDTH && stored <= SIDEBAR_MAX_WIDTH ? stored : SIDEBAR_DEFAULT_WIDTH;
+  const { width: sidebarWidth, isResizing, onPointerDown: handleResizePointerDown } = useResizableSidebar({
+    min: SIDEBAR_MIN_WIDTH,
+    max: SIDEBAR_MAX_WIDTH,
+    defaultWidth: SIDEBAR_DEFAULT_WIDTH,
+    storageKey: SIDEBAR_WIDTH_KEY,
   });
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStart = useRef({ x: 0, width: SIDEBAR_DEFAULT_WIDTH });
   const location = useLocation();
-
-  const handleResizePointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      resizeStart.current = { x: event.clientX, width: sidebarWidth };
-      setIsResizing(true);
-    },
-    [sidebarWidth],
-  );
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handlePointerMove = (event: PointerEvent) => {
-      const delta = event.clientX - resizeStart.current.x;
-      const nextWidth = Math.min(
-        SIDEBAR_MAX_WIDTH,
-        Math.max(SIDEBAR_MIN_WIDTH, resizeStart.current.width + delta),
-      );
-      setSidebarWidth(nextWidth);
-    };
-    const handlePointerUp = () => setIsResizing(false);
-
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [isResizing]);
-
-  useEffect(() => {
-    if (isResizing) return;
-    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
-  }, [sidebarWidth, isResizing]);
 
   const sidebar = (
     <PageSidebar

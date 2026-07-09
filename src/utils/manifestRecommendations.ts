@@ -1,3 +1,5 @@
+import { resolveWorkloadPodSpec } from './workloadPodSpec';
+
 export type RecommendationSeverity = 'danger' | 'warning' | 'info';
 
 export interface Recommendation {
@@ -19,17 +21,6 @@ interface PodSpecLike {
   hostNetwork?: boolean;
   hostPID?: boolean;
   hostIPC?: boolean;
-}
-
-/** Workload kinds whose pod template lives at `spec.template.spec` rather than `spec` itself. */
-const TEMPLATED_WORKLOAD_KINDS = new Set(['Deployment', 'StatefulSet', 'DaemonSet', 'Job']);
-
-function extractPodSpec(manifest: Record<string, any>): PodSpecLike | undefined {
-  const kind = manifest.kind;
-  if (kind === 'Pod') return manifest.spec;
-  if (kind === 'CronJob') return manifest.spec?.jobTemplate?.spec?.template?.spec;
-  if (kind && TEMPLATED_WORKLOAD_KINDS.has(kind)) return manifest.spec?.template?.spec;
-  return undefined;
 }
 
 function checkContainers(containers: ContainerLike[]): Recommendation[] {
@@ -72,7 +63,7 @@ function checkWorkloadShape(manifest: Record<string, any>): Recommendation[] {
       recs.push({ severity: 'info', message: `replicas is ${replicas} — a single replica has no failover if that pod is evicted or its node fails.` });
     }
   }
-  const podSpec = extractPodSpec(manifest);
+  const podSpec = resolveWorkloadPodSpec(manifest)?.podSpec as PodSpecLike | undefined;
   if (podSpec?.hostNetwork) recs.push({ severity: 'warning', message: 'hostNetwork is true — this pod shares the node\'s network namespace, bypassing network policy isolation.' });
   if (podSpec?.hostPID) recs.push({ severity: 'warning', message: 'hostPID is true — this pod can see and signal every process on the node.' });
   if (podSpec?.hostIPC) recs.push({ severity: 'warning', message: 'hostIPC is true — this pod shares the node\'s IPC namespace.' });

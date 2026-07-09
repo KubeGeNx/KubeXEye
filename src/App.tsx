@@ -33,6 +33,7 @@ const DependencyMap       = lazy(() => import('./pages/DependencyMap').then(m =>
 const HelmReleases        = lazy(() => import('./pages/HelmReleases').then(m => ({ default: m.HelmReleases })));
 const PanicPage           = lazy(() => import('./pages/PanicPage').then(m => ({ default: m.PanicPage })));
 const ResourceAnalyser    = lazy(() => import('./pages/ResourceAnalyser').then(m => ({ default: m.ResourceAnalyser })));
+const SecurityAnalyzer    = lazy(() => import('./pages/SecurityAnalyzer').then(m => ({ default: m.SecurityAnalyzer })));
 
 const PageSpinner = () => (
   <Bullseye style={{ minHeight: 320 }}>
@@ -103,6 +104,7 @@ export const App: React.FC = () => (
                     <Route path="/custom-resources" element={<ErrorBoundary label="Custom Resources"><Suspense fallback={<PageSpinner />}><CustomResources /></Suspense></ErrorBoundary>} />
                     <Route path="/settings" element={<ErrorBoundary label="Settings"><Suspense fallback={<PageSpinner />}><Settings /></Suspense></ErrorBoundary>} />
                     <Route path="/resource-analyser" element={<ErrorBoundary label="Resource Analyser"><Suspense fallback={<PageSpinner />}><ResourceAnalyser /></Suspense></ErrorBoundary>} />
+                    <Route path="/security-analyzer" element={<ErrorBoundary label="Security Analyzer"><Suspense fallback={<PageSpinner />}><SecurityAnalyzer /></Suspense></ErrorBoundary>} />
                   </Route>
                 </Routes>
               </ErrorBoundary>

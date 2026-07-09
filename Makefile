@@ -1,3 +1,11 @@
+# Prerequisites (see doc/development.md#prerequisites for details):
+#   - Node.js >= 20.19 (Vite 8 requires it; see the "engines" field in package.json)
+#   - npm >= 10
+#   - A running Kubernetes cluster reachable from this machine
+#
+# Node.js/npm versions are checked automatically (target: check-node) before install/build/run —
+# see scripts/check-node-version.cjs. Cluster access isn't checked here; the app reports connection
+# problems at runtime.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
@@ -12,7 +20,7 @@ DEV_PORT        ?= 5173
 KUBE_PROXY_PORT ?= 8001
 SERVE_PORT      ?= 8080
 
-.PHONY: help install build run dev start stop restart proxy proxy-stop \
+.PHONY: help check-node install build run dev start stop restart proxy proxy-stop \
         serve serve-start serve-stop \
         preview lint typecheck test test-watch coverage clean distclean status logs
 
@@ -20,7 +28,11 @@ help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-install: ## Install npm dependencies
+check-node: ## Verify Node.js/npm meet the minimum required versions (see package.json "engines")
+	@command -v node >/dev/null 2>&1 || { echo "✖ Node.js not found on PATH. Install it: https://nodejs.org"; exit 1; }
+	@node scripts/check-node-version.cjs
+
+install: check-node ## Install npm dependencies
 	npm install
 
 build: install ## Type-check and produce a production build (dist/)
@@ -62,7 +74,7 @@ stop: serve-stop ## Stop all background processes (dev server, kube-proxy, and u
 
 restart: stop start ## Restart the background dev server and kube-proxy
 
-proxy: ## Run the bundled kube-proxy replacement in the foreground (Ctrl+C to stop) — reads kubeconfig directly, no 'kubectl' binary required
+proxy: check-node ## Run the bundled kube-proxy replacement in the foreground (Ctrl+C to stop) — reads kubeconfig directly, no 'kubectl' binary required
 	KUBE_PROXY_PORT=$(KUBE_PROXY_PORT) npm run server
 
 proxy-stop: ## Stop only the background kube-proxy
