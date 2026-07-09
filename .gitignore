@@ -19,6 +19,10 @@ coverage
 
 # Claude Code local-only settings (settings.json itself is the shared, committed config)
 .claude/settings.local.json
+# Per-session runtime lock file (session id/pid/timestamp), not config
+.claude/scheduled_tasks.lock
+# Local dev-server launch config — often has machine-specific paths, keep it per-developer
+.claude/launch.json
 
 # Logs
 npm-debug.log*
